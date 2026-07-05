@@ -42,4 +42,4 @@ out/
 # Spring local overrides
 application-local.yml
 .testcontainers/
-application-*.yml
+.env

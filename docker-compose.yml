@@ -1,0 +1,16 @@
+
+services:
+  psyweb-db:
+    image: postgres:16
+    container_name: psyweb-db
+    environment:
+      POSTGRES_DB: psyweb
+      POSTGRES_USER: psyweb
+      POSTGRES_PASSWORD: psyweb
+    ports:
+      - "5432:5432"
+    volumes:
+      - psyweb_data:/var/lib/postgresql/data
+
+volumes:
+  psyweb_data:

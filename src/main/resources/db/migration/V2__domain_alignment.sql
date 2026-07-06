@@ -1,0 +1,9 @@
+ALTER TABLE users ADD COLUMN status VARCHAR(50) DEFAULT 'ACTIVE' NOT NULL;
+
+ALTER TABLE users RENAME password TO password_hash;
+
+ALTER TABLE users ADD CONSTRAINT chk_role 
+CHECK(role IN ('ADMIN', 'CLIENT', 'SPECIALIST'));
+
+ALTER TABLE users ADD CONSTRAINT chk_status 
+CHECK (status IN ('ACTIVE', 'BLOCKED'));

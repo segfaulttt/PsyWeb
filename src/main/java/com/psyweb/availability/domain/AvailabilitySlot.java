@@ -48,6 +48,8 @@ public class AvailabilitySlot {
 		if (!startTime.isBefore(endTime)) {
 		    throw new IllegalArgumentException("Start must be before end");
 		}
+		this.startTime = startTime;
+		this.endTime = endTime;
 		this.availabilityStatus = AvailabilityStatus.FREE;
 	}
 	

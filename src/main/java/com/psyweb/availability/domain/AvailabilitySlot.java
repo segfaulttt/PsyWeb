@@ -71,15 +71,15 @@ public class AvailabilitySlot {
 		return this.availabilityStatus;
 	}
 	
-	void markBlocked() {
+	public void markBlocked() {
 		this.availabilityStatus = AvailabilityStatus.BLOCKED;
 	}
 	
-	void markFree() {
+	public void markFree() {
 		this.availabilityStatus = AvailabilityStatus.FREE;
 	}
 	
-	void markBooked() {
+	public void markBooked() {
 		this.availabilityStatus = AvailabilityStatus.BOOKED;
 	}
 }

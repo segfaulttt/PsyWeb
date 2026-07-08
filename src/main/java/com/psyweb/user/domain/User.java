@@ -38,6 +38,27 @@ public class User {
 	@CreationTimestamp
 	private LocalDateTime createdAt;
 	
+	protected User() {}
+	
+	public User(String email, String passwordHash, UserRole role, UserStatus status) {
+		if (email == null || email.isBlank()) {
+			throw new IllegalArgumentException("Email cannot be blank");
+		}
+		if (passwordHash == null || passwordHash.isBlank()) {
+			throw new IllegalArgumentException("Password cannot be blank");
+		}
+		if (role == null) {
+			throw new IllegalArgumentException("");
+		}
+		if (status == null) {
+			throw new IllegalArgumentException("");
+		}
+		this.email = email;
+		this.passwordHash = passwordHash;
+		this.role = role;
+		this.status = status;
+	}
+	
 	public Long getId() {
 		return this.id;
 	}
@@ -46,7 +67,10 @@ public class User {
 		return this.email;
 	}
 	
-	public void setEmail(String newEmail) {
+	public void changeEmail(String newEmail) {
+		if (newEmail == null || newEmail.isBlank()) {
+	        throw new IllegalArgumentException("Email cannot be blank");
+	    }
 		this.email = newEmail;
 	}
 	
@@ -54,7 +78,7 @@ public class User {
 		return this.passwordHash;
 	}
 	
-	public void changePassword(String newPasswordHash) {
+	public void changePasswordHash(String newPasswordHash) {
 		this.passwordHash = newPasswordHash;
 	}
 	

@@ -8,6 +8,6 @@ import com.psyweb.availability.domain.AvailabilitySlot;
 
 public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long>{
 	
-	public List<AvailabilitySlot> findBySpecialistId(Long SpecialistId);
+	public List<AvailabilitySlot> findBySpecialistId(Long specialistId);
 
 }

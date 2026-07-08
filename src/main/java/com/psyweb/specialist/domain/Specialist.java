@@ -37,6 +37,28 @@ public class Specialist {
 	@Enumerated(EnumType.STRING)
 	private SpecialistStatus approvalStatus;
 	
+	protected Specialist() {}
+	
+	public Specialist(User user, String firstName, String lastName, String bio) {
+		if (user == null) {
+			throw new IllegalArgumentException("user cannot be blank");
+		}
+		if (firstName == null || firstName.isBlank()) {
+			throw new IllegalArgumentException("Firstname cannot be blank");
+		}
+		if (lastName == null || lastName.isBlank()) {
+			throw new IllegalArgumentException("Lastname cannot be blank");
+		}
+		if (bio == null || bio.isBlank()) {
+			throw new IllegalArgumentException("Bio cannot be blank");
+		}
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.bio = bio;
+		this.user = user;
+		this.approvalStatus = SpecialistStatus.PENDING;
+	}
+	
 	public Long getId() {
 	    return user.getId();
 	}

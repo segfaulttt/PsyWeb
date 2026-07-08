@@ -40,7 +40,6 @@ public class AvailabilitySlot {
 	protected AvailabilitySlot() {}
 	
 	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
-		this.specialist = specialist;
 		if (startTime == null || endTime == null) {
 		    throw new IllegalArgumentException("Time cannot be null");
 		}
@@ -48,6 +47,7 @@ public class AvailabilitySlot {
 		if (!startTime.isBefore(endTime)) {
 		    throw new IllegalArgumentException("Start must be before end");
 		}
+		this.specialist = specialist;
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.availabilityStatus = AvailabilityStatus.FREE;

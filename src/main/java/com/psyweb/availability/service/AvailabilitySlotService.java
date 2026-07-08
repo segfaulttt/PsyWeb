@@ -28,8 +28,9 @@ public class AvailabilitySlotService {
 		if (!startTime.isBefore(endTime)) {
 			throw new IllegalArgumentException("Start must be before end");
 		}
-		
-		// later: overlap validation and concurrency protection
+		if (slotRepository.existsOverlappingSlot(specialist.getId(), startTime, endTime)) {
+			throw new IllegalArgumentException("Overlap");
+		}
 		
 		AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
 		
@@ -70,10 +71,5 @@ public class AvailabilitySlotService {
 	
 	public List<AvailabilitySlot> findBySpecialist(Long specialistId) {
 		return slotRepository.findBySpecialistId(specialistId);
-	}
-	
-	// later:
-	// - overlap validation
-	// - concurrency protection
-	// - transactional booking flow
+	}	
 }

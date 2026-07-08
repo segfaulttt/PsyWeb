@@ -58,9 +58,15 @@ class AvailabilitySlotServiceTest {
 
     @Test
     void shouldCreateSlot() {
+    	Specialist specialist = mock(Specialist.class);
+
+    	when(specialist.getId())
+    	    .thenReturn(1L);
     	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
     	LocalDateTime end = LocalDateTime.of(2026,7,10,11,0);
     	
+    	when(slotRepository.existsOverlappingSlot(1L, start, end))
+    		.thenReturn(false);
     	when(slotRepository.save(any(AvailabilitySlot.class)))
     		.thenAnswer(invocation -> invocation.getArgument(0));
     	ArgumentCaptor<AvailabilitySlot> captor = ArgumentCaptor.forClass(AvailabilitySlot.class);
@@ -75,6 +81,7 @@ class AvailabilitySlotServiceTest {
         AvailabilitySlot captured = captor.getValue();
         assertEquals(start, captured.getStartTime());
         assertEquals(end, captured.getEndTime());
+        verify(slotRepository).existsOverlappingSlot(1L, start, end);
     }
     
     @Test
@@ -92,7 +99,8 @@ class AvailabilitySlotServiceTest {
     void shouldBlockFreeSlot() {    	
     	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
     	
-    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.findById(SLOT_ID))
+    		.thenReturn(Optional.of(slot));
     	when(slotRepository.save(any(AvailabilitySlot.class)))
         	.thenAnswer(invocation -> invocation.getArgument(0));
     	
@@ -109,7 +117,7 @@ class AvailabilitySlotServiceTest {
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
     	
     	when(slotRepository.findById(SLOT_ID))
-        .thenReturn(Optional.of(slot));
+        	.thenReturn(Optional.of(slot));
     	Exception exception = assertThrows(IllegalArgumentException.class, 
     			() -> slotService.blockSlot(SLOT_ID));
     	
@@ -122,7 +130,8 @@ class AvailabilitySlotServiceTest {
     	slot.markBlocked();
     	assertEquals(AvailabilityStatus.BLOCKED, slot.getAvailabilityStatus());
     	
-    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.findById(SLOT_ID))
+    		.thenReturn(Optional.of(slot));
     	when(slotRepository.save(any(AvailabilitySlot.class)))
         	.thenAnswer(invocation -> invocation.getArgument(0));
     	
@@ -136,7 +145,8 @@ class AvailabilitySlotServiceTest {
     void shouldRejectFreeSlotWithInvalidStatus() {
     	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
-    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.findById(SLOT_ID))
+    		.thenReturn(Optional.of(slot));
     	Exception exception = assertThrows(IllegalArgumentException.class, 
     			() -> slotService.freeSlot(SLOT_ID));
     	
@@ -149,10 +159,32 @@ class AvailabilitySlotServiceTest {
     	slot.markBooked();
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
     	
-    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.findById(SLOT_ID))
+    		.thenReturn(Optional.of(slot));
     	Exception exception = assertThrows(IllegalArgumentException.class, 
     			() -> slotService.freeSlot(SLOT_ID));
     	assertEquals("Cannot free slot", exception.getMessage());
     	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    void shouldRejectSlotCreationWhenOverlapExists() {
+    	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
+    	LocalDateTime end = LocalDateTime.of(2026,7,10,11,0);
+
+    	Specialist specialist = mock(Specialist.class);
+
+    	when(specialist.getId())
+    	    .thenReturn(1L);
+    	
+    	when(slotRepository.existsOverlappingSlot(1L, start, end))
+    		.thenReturn(true);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(specialist, start, end));
+    	
+    	assertEquals("Overlap", exception.getMessage());
+    	verify(slotRepository, never()).save(any());
+    	verify(slotRepository).existsOverlappingSlot(1L, start, end);
     }
 }

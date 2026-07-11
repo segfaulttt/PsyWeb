@@ -39,6 +39,10 @@ public class Booking {
 	@JoinColumn(name = "slot_id", nullable = false)
 	private AvailabilitySlot slot;
 	
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "reservation_id")
+	private Reservation reservation;
+	
 	@Column(name = "status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private BookingStatus status;
@@ -51,7 +55,7 @@ public class Booking {
 	
 	protected Booking() {}
 	
-	public Booking(User client, Specialist specialist, AvailabilitySlot slot) {
+	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation) {
 		if (client == null) {
 			throw new IllegalArgumentException("Client cannot be blank");
 		}
@@ -61,10 +65,14 @@ public class Booking {
 		if (slot == null) {
 			throw new IllegalArgumentException("Slot cannot be blank");
 		}
+		if (reservation == null || reservation.getStatus() != ReservationStatus.CONFIRMED) {
+			throw new IllegalArgumentException("Reservation cannot be blank");
+		}
 		this.createdAt = LocalDateTime.now();
 		this.client = client;
 		this.specialist = specialist;
 		this.slot = slot;
+		this.reservation = reservation;
 		this.status = BookingStatus.CONFIRMED;
 	}
 	
@@ -82,6 +90,10 @@ public class Booking {
 	
 	public Long getSlotId() {
 		return this.slot.getId();
+	}
+	
+	public Long getReservationId() {
+		return this.reservation.getId();
 	}
 	
 	public BookingStatus getStatus() {

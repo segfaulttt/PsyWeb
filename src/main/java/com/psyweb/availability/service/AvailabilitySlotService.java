@@ -72,4 +72,16 @@ public class AvailabilitySlotService {
 	public List<AvailabilitySlot> findBySpecialist(Long specialistId) {
 		return slotRepository.findBySpecialistId(specialistId);
 	}	
+	
+	public AvailabilitySlot getFreeSlot(Long id) {
+		if (id == null) {
+			throw new IllegalArgumentException("Invalid id");
+		}
+		AvailabilitySlot slot = slotRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+		if (slot.getAvailabilityStatus() != AvailabilityStatus.FREE) {
+			throw new IllegalArgumentException("Slot must have status 'FREE'");
+		}
+		return slot;
+	}
 }

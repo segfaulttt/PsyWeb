@@ -92,6 +92,13 @@ public class Reservation {
 		this.status = ReservationStatus.EXPIRED;
 	}
 	
+	public boolean isExpired() {
+		if (this.status == ReservationStatus.ACTIVE || !this.expiresAt.isAfter(LocalDateTime.now())) {
+			return true;
+		}
+		return false;
+	}
+	
 	public void cancel() {
 		if (this.status != ReservationStatus.ACTIVE) {
 			throw new IllegalArgumentException("Cannot mark cancelled");

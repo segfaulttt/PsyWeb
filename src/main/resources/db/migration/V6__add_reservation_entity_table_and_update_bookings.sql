@@ -13,7 +13,7 @@ CREATE TABLE reservations (
 	FOREIGN KEY(slot_id) REFERENCES slots(id),
 	
 	CONSTRAINT chk_reservation_status CHECK(status IN ('ACTIVE', 'CONFIRMED', 'EXPIRED', 'CANCELLED'))
-)
+);
 
 CREATE UNIQUE INDEX unique_active_reservation_slot
 ON reservations(slot_id)

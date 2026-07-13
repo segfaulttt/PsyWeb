@@ -93,7 +93,7 @@ public class Reservation {
 	}
 	
 	public boolean isExpired() {
-		if (this.status == ReservationStatus.ACTIVE || !this.expiresAt.isAfter(LocalDateTime.now())) {
+		if (this.status == ReservationStatus.ACTIVE && !this.expiresAt.isAfter(LocalDateTime.now())) {
 			return true;
 		}
 		return false;

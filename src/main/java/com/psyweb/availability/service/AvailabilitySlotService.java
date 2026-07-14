@@ -69,7 +69,35 @@ public class AvailabilitySlotService {
 		return slotRepository.save(slot);
 	}
 	
+	public AvailabilitySlot releaseBookedSlot(Long slotId) {
+		if (slotId == null) {
+			throw new IllegalArgumentException("Slot ID cannot be null");
+		}
+		
+		AvailabilitySlot slot = slotRepository.findById(slotId)
+				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+		
+		if (slot.getAvailabilityStatus() != AvailabilityStatus.BOOKED) {
+			throw new IllegalArgumentException("Cannot free slot");
+		}
+
+		slot.markFree();
+		return slotRepository.save(slot);
+	}
+	
 	public List<AvailabilitySlot> findBySpecialist(Long specialistId) {
 		return slotRepository.findBySpecialistId(specialistId);
 	}	
+	
+	public AvailabilitySlot getFreeSlot(Long id) {
+		if (id == null) {
+			throw new IllegalArgumentException("Invalid id");
+		}
+		AvailabilitySlot slot = slotRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+		if (slot.getAvailabilityStatus() != AvailabilityStatus.FREE) {
+			throw new IllegalArgumentException("Slot must have status 'FREE'");
+		}
+		return slot;
+	}
 }

@@ -41,10 +41,8 @@ public class User {
 	protected User() {}
 	
 	public User(String email, String passwordHash, UserRole role, UserStatus status) {
-		if (email == null || email.isBlank()) {
-			throw new IllegalArgumentException("Email cannot be blank");
-		}
-		
+		email = normalizationEmail(email);
+		validateEmail(email);
 		validatePasswordHash(passwordHash);
 		
 		if (role == null) {
@@ -65,6 +63,25 @@ public class User {
 		}
 	}
 	
+	private static void validateEmail(String email) {
+		if (email == null || email.isBlank()) {
+			throw new IllegalArgumentException("Email cannot be blank");
+		}
+		int idxF = email.indexOf('@');
+		int idxL = email.lastIndexOf('@');
+		
+		if (idxF == -1 || idxF != idxL || idxF == 0 || idxF == email.length() - 1) {
+			throw new IllegalArgumentException("Incorrect email");
+		}
+	}
+	
+	private static String normalizationEmail(String email) {
+		if (email == null) {
+			throw new IllegalArgumentException("Email cannot be blank");
+		}
+		return email.trim().toLowerCase();
+	}
+	
 	public Long getId() {
 		return this.id;
 	}
@@ -74,9 +91,8 @@ public class User {
 	}
 	
 	public void changeEmail(String newEmail) {
-		if (newEmail == null || newEmail.isBlank()) {
-	        throw new IllegalArgumentException("Email cannot be blank");
-	    }
+		newEmail = normalizationEmail(newEmail);
+		validateEmail(newEmail);
 		this.email = newEmail;
 	}
 	

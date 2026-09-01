@@ -44,9 +44,9 @@ public class User {
 		if (email == null || email.isBlank()) {
 			throw new IllegalArgumentException("Email cannot be blank");
 		}
-		if (passwordHash == null || passwordHash.isBlank()) {
-			throw new IllegalArgumentException("Password cannot be blank");
-		}
+		
+		validatePasswordHash(passwordHash);
+		
 		if (role == null) {
 			throw new IllegalArgumentException("");
 		}
@@ -57,6 +57,12 @@ public class User {
 		this.passwordHash = passwordHash;
 		this.role = role;
 		this.status = status;
+	}
+	
+	private static void validatePasswordHash(String passwordHash) {
+		if (passwordHash == null || passwordHash.isBlank()) {
+			throw new IllegalArgumentException("Password hash cannot be blank");
+		}
 	}
 	
 	public Long getId() {
@@ -79,6 +85,7 @@ public class User {
 	}
 	
 	public void changePasswordHash(String newPasswordHash) {
+		validatePasswordHash(newPasswordHash);
 		this.passwordHash = newPasswordHash;
 	}
 	

@@ -1,6 +1,7 @@
 package com.psyweb.user.domain;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -41,7 +42,7 @@ public class User {
 	protected User() {}
 	
 	public User(String email, String passwordHash, UserRole role, UserStatus status) {
-		email = normalizationEmail(email);
+		email = normalizeEmail(email);
 		validateEmail(email);
 		validatePasswordHash(passwordHash);
 		
@@ -75,11 +76,11 @@ public class User {
 		}
 	}
 	
-	private static String normalizationEmail(String email) {
+	private static String normalizeEmail(String email) {
 		if (email == null) {
 			throw new IllegalArgumentException("Email cannot be blank");
 		}
-		return email.trim().toLowerCase();
+		return email.trim().toLowerCase(Locale.ROOT);
 	}
 	
 	public Long getId() {
@@ -91,7 +92,7 @@ public class User {
 	}
 	
 	public void changeEmail(String newEmail) {
-		newEmail = normalizationEmail(newEmail);
+		newEmail = normalizeEmail(newEmail);
 		validateEmail(newEmail);
 		this.email = newEmail;
 	}

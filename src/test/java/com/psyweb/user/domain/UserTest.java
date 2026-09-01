@@ -85,6 +85,11 @@ public class UserTest {
 		excep = assertThrows(IllegalArgumentException.class,
 				() -> new User(emailTh, "password", UserRole.CLIENT, UserStatus.ACTIVE));
 		assertEquals("Incorrect email", excep.getMessage());
+		
+		String emailFor = "incorrectexample.ru";
+		excep = assertThrows(IllegalArgumentException.class,
+				() -> new User(emailFor, "password", UserRole.CLIENT, UserStatus.ACTIVE));
+		assertEquals("Incorrect email", excep.getMessage());
 	}
 	
 	@Test

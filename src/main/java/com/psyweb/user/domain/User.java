@@ -76,7 +76,7 @@ public class User {
 		}
 	}
 	
-	private static String normalizeEmail(String email) {
+	public static String normalizeEmail(String email) {
 		if (email == null) {
 			throw new IllegalArgumentException("Email cannot be blank");
 		}

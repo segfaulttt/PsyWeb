@@ -106,7 +106,7 @@ public class UserServiceTest {
 	}
 	
 	@Test
-	public void shouldRejectNullUserWithoutCallingRepository() {
+	public void shouldRejectNullUserIdWithoutCallingRepository() {
 		Exception exception = assertThrows(IllegalArgumentException.class , () -> service.getUser(null));
 		
 		assertEquals("Invalid id", exception.getMessage());

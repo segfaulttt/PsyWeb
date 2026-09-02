@@ -25,4 +25,12 @@ public class UserService {
 		}
 		return user;
 	}
+	
+	public User findUserByEmail(String email) {
+		email = User.normalizeEmail(email);
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new IllegalArgumentException("User not found"));
+		
+		return user;
+	}
 }

@@ -14,12 +14,17 @@ public class UserService {
 		this.userRepository = userRepository;
 	}
 	
-	public User getActiveUser(Long id) {
+	public User getUser(Long id) {
 		if (id == null) {
 			throw new IllegalArgumentException("Invalid id");
 		}
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("User not found"));
+		return user;
+	}
+	
+	public User getActiveUser(Long id) {
+		User user = getUser(id);
 		if (user.getStatus() != UserStatus.ACTIVE) {
 			throw new IllegalArgumentException("User must have status 'ACTIVE'");
 		}

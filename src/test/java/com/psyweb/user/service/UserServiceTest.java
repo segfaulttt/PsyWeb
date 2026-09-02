@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
 	
-	private User user = new User("user@example.ru", "password", UserRole.CLIENT, UserStatus.ACTIVE);;
+	private User user = new User("user@example.ru", "password", UserRole.CLIENT, UserStatus.ACTIVE);
 	
 	@Mock
 	UserRepository repository;
@@ -34,7 +34,6 @@ public class UserServiceTest {
 		when(repository.findByEmail("user@example.ru")).thenReturn(Optional.of(user));
 		User result = service.findUserByEmail(email);
 		
-		assertEquals(user.getEmail(), result.getEmail());
 		assertEquals(user, result);
 	}
 	
@@ -44,7 +43,6 @@ public class UserServiceTest {
 		when(repository.findByEmail("user@example.ru")).thenReturn(Optional.of(user));
 		User result = service.findUserByEmail(email);
 		
-		assertEquals(user.getEmail(), result.getEmail());
 		assertEquals(user, result);
 	}
 	
@@ -54,7 +52,6 @@ public class UserServiceTest {
 		when(repository.findByEmail("user@example.ru")).thenReturn(Optional.of(user));
 		User result = service.findUserByEmail(email);
 		
-		assertEquals(user.getEmail(), result.getEmail());
 		assertEquals(user, result);
 	}
 	
@@ -74,5 +71,6 @@ public class UserServiceTest {
 				() -> service.findUserByEmail(null));
 		
 		assertEquals("Email cannot be blank", exception.getMessage());
+		verify(repository, never()).findByEmail(any());
 	}
 }

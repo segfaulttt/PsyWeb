@@ -63,18 +63,40 @@ public class UserServiceTest {
 	public void shouldThrowExceptionWhenUserNotFoundByEmail() {
 		String email = "null@example.ru";
 		when(repository.findByEmail("null@example.ru")).thenReturn(Optional.empty());
-		Exception exception = assertThrows(UserNotFoundException.class,
+		UserNotFoundException exception = assertThrows(UserNotFoundException.class,
 				() -> service.findUserByEmail(email));
 		
+		assertEquals("USER_NOT_FOUND", exception.code());
 		assertEquals("User not found", exception.getMessage());
 	}
 	
 	@Test
 	public void shouldRejectNullEmailWithoutCallingRepository() {
-		Exception exception = assertThrows(InvalidUserDataException.class,
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class,
 				() -> service.findUserByEmail(null));
 		
+		assertEquals("USER_INVALID_DATA", exception.code());
 		assertEquals("Email cannot be blank", exception.getMessage());
+		verify(repository, never()).findByEmail(any());
+	}
+	
+	@Test
+	public void shouldRejectBlankEmailWithoutCallingRepository() {
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class,
+				() -> service.findUserByEmail("   "));
+		
+		assertEquals("USER_INVALID_DATA", exception.code());
+		assertEquals("Email cannot be blank", exception.getMessage());
+		verify(repository, never()).findByEmail(any());
+	}
+	
+	@Test
+	public void shouldRejectInvalidEmailWithoutCallingRepository() {
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class,
+				() -> service.findUserByEmail("incorrect-email"));
+		
+		assertEquals("USER_INVALID_DATA", exception.code());
+		assertEquals("Invalid email format", exception.getMessage());
 		verify(repository, never()).findByEmail(any());
 	}
 	
@@ -103,15 +125,17 @@ public class UserServiceTest {
 		Long id = 100L;
 		when(repository.findById(id)).thenReturn(Optional.empty());
 		
-		Exception exception = assertThrows(UserNotFoundException.class , () -> service.getUser(id));
+		UserNotFoundException exception = assertThrows(UserNotFoundException.class , () -> service.getUser(id));
 		
+		assertEquals("USER_NOT_FOUND", exception.code());
 		assertEquals("User not found", exception.getMessage());
 	}
 	
 	@Test
 	public void shouldRejectNullUserIdWithoutCallingRepository() {
-		Exception exception = assertThrows(InvalidUserDataException.class , () -> service.getUser(null));
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class , () -> service.getUser(null));
 		
+		assertEquals("USER_INVALID_DATA", exception.code());
 		assertEquals("User id cannot be null", exception.getMessage());
 		verify(repository, never()).findById(any());
 	}
@@ -131,8 +155,9 @@ public class UserServiceTest {
 		Long id = 11L;
 		when(repository.findById(id)).thenReturn(Optional.of(userBlocked));
 		
-		Exception exception = assertThrows(UserAccessForbiddenException.class , () -> service.getActiveUser(id));
+		UserAccessForbiddenException exception = assertThrows(UserAccessForbiddenException.class , () -> service.getActiveUser(id));
 		
+		assertEquals("USER_ACCESS_FORBIDDEN", exception.code());
 		assertEquals("User must have status 'ACTIVE'", exception.getMessage());
 	}
 	

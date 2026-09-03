@@ -45,7 +45,6 @@ public class User {
 	
 	public User(String email, String passwordHash, UserRole role, UserStatus status) {
 		email = normalizeEmail(email);
-		validateEmail(email);
 		validatePasswordHash(passwordHash);
 		
 		if (role == null) {
@@ -82,7 +81,10 @@ public class User {
 		if (email == null) {
 			throw new InvalidUserDataException("Email cannot be blank");
 		}
-		return email.trim().toLowerCase(Locale.ROOT);
+		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+		validateEmail(normalizedEmail);
+		
+		return normalizedEmail;
 	}
 	
 	public Long getId() {
@@ -95,7 +97,6 @@ public class User {
 	
 	public void changeEmail(String newEmail) {
 		newEmail = normalizeEmail(newEmail);
-		validateEmail(newEmail);
 		this.email = newEmail;
 	}
 	

@@ -2,7 +2,7 @@ package com.psyweb.user.exception;
 
 import com.psyweb.common.exception.NotFoundException;
 
-public class UserNotFoundException extends NotFoundException {
+public final class UserNotFoundException extends NotFoundException {
     private static final String CODE = "USER_NOT_FOUND";
     
     public UserNotFoundException(String message) {

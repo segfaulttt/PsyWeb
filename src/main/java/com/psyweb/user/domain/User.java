@@ -5,6 +5,8 @@ import java.util.Locale;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.psyweb.user.exception.InvalidUserDataException;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,10 +49,10 @@ public class User {
 		validatePasswordHash(passwordHash);
 		
 		if (role == null) {
-			throw new IllegalArgumentException("");
+			throw new InvalidUserDataException("User role cannot be null");
 		}
 		if (status == null) {
-			throw new IllegalArgumentException("");
+			throw new InvalidUserDataException("User status cannot be null");
 		}
 		this.email = email;
 		this.passwordHash = passwordHash;
@@ -60,25 +62,25 @@ public class User {
 	
 	private static void validatePasswordHash(String passwordHash) {
 		if (passwordHash == null || passwordHash.isBlank()) {
-			throw new IllegalArgumentException("Password hash cannot be blank");
+			throw new InvalidUserDataException("Password hash cannot be blank");
 		}
 	}
 	
 	private static void validateEmail(String email) {
 		if (email == null || email.isBlank()) {
-			throw new IllegalArgumentException("Email cannot be blank");
+			throw new InvalidUserDataException("Email cannot be blank");
 		}
 		int idxF = email.indexOf('@');
 		int idxL = email.lastIndexOf('@');
 		
 		if (idxF == -1 || idxF != idxL || idxF == 0 || idxF == email.length() - 1) {
-			throw new IllegalArgumentException("Incorrect email");
+			throw new InvalidUserDataException("Invalid email format");
 		}
 	}
 	
 	public static String normalizeEmail(String email) {
 		if (email == null) {
-			throw new IllegalArgumentException("Email cannot be blank");
+			throw new InvalidUserDataException("Email cannot be blank");
 		}
 		return email.trim().toLowerCase(Locale.ROOT);
 	}

@@ -11,6 +11,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
+import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.exception.UserAccessForbiddenException;
+import com.psyweb.user.exception.UserNotFoundException;
 import com.psyweb.user.repository.UserRepository;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,7 +63,7 @@ public class UserServiceTest {
 	public void shouldThrowExceptionWhenUserNotFoundByEmail() {
 		String email = "null@example.ru";
 		when(repository.findByEmail("null@example.ru")).thenReturn(Optional.empty());
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		Exception exception = assertThrows(UserNotFoundException.class,
 				() -> service.findUserByEmail(email));
 		
 		assertEquals("User not found", exception.getMessage());
@@ -68,7 +71,7 @@ public class UserServiceTest {
 	
 	@Test
 	public void shouldRejectNullEmailWithoutCallingRepository() {
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		Exception exception = assertThrows(InvalidUserDataException.class,
 				() -> service.findUserByEmail(null));
 		
 		assertEquals("Email cannot be blank", exception.getMessage());
@@ -100,16 +103,16 @@ public class UserServiceTest {
 		Long id = 100L;
 		when(repository.findById(id)).thenReturn(Optional.empty());
 		
-		Exception exception = assertThrows(IllegalArgumentException.class , () -> service.getUser(id));
+		Exception exception = assertThrows(UserNotFoundException.class , () -> service.getUser(id));
 		
 		assertEquals("User not found", exception.getMessage());
 	}
 	
 	@Test
 	public void shouldRejectNullUserIdWithoutCallingRepository() {
-		Exception exception = assertThrows(IllegalArgumentException.class , () -> service.getUser(null));
+		Exception exception = assertThrows(InvalidUserDataException.class , () -> service.getUser(null));
 		
-		assertEquals("Invalid id", exception.getMessage());
+		assertEquals("User id cannot be null", exception.getMessage());
 		verify(repository, never()).findById(any());
 	}
 	
@@ -128,7 +131,7 @@ public class UserServiceTest {
 		Long id = 11L;
 		when(repository.findById(id)).thenReturn(Optional.of(userBlocked));
 		
-		Exception exception = assertThrows(IllegalArgumentException.class , () -> service.getActiveUser(id));
+		Exception exception = assertThrows(UserAccessForbiddenException.class , () -> service.getActiveUser(id));
 		
 		assertEquals("User must have status 'ACTIVE'", exception.getMessage());
 	}

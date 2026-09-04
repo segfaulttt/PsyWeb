@@ -126,7 +126,7 @@ public class ReservationServiceTest {
 				() -> reservationService.createReservation(clientId, slotId));
 		
 		assertEquals("Slot must have status 'FREE'", exception.getMessage());
-		verify(reservationRepository, never()).save(any(Reservation.class));
+		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test
@@ -142,7 +142,7 @@ public class ReservationServiceTest {
 		
 		assertEquals("SLOT_ALREADY_RESERVED", exception.code());
 		assertEquals("Slot is already reserved", exception.getMessage());
-		verify(reservationRepository, never()).save(any(Reservation.class));
+		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test

@@ -27,7 +27,7 @@ public class SpecialistTest {
 				() -> new Specialist(user, "   ", "Last", "bio"));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
-		assertEquals("Firs tname cannot be blank", exception.getMessage());
+		assertEquals("First name cannot be blank", exception.getMessage());
 	}
 	
 	@Test

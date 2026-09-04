@@ -19,7 +19,7 @@ public class SpecialistService {
 	
 	public Specialist getSpecialist(Long id) {
 		if (id == null) {
-			throw new InvalidSpecialistDataException("Specialist id cannot be blank");
+			throw new InvalidSpecialistDataException("Specialist id cannot be null");
 		}
 		Specialist specialist = specialistRepository.findById(id)
 				.orElseThrow(() -> new SpecialistNotFoundException("Specialist not found"));

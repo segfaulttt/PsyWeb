@@ -45,10 +45,10 @@ public class Specialist {
 			throw new InvalidSpecialistDataException("User cannot be blank");
 		}
 		if (firstName == null || firstName.isBlank()) {
-			throw new InvalidSpecialistDataException("Firstname cannot be blank");
+			throw new InvalidSpecialistDataException("Firs tname cannot be blank");
 		}
 		if (lastName == null || lastName.isBlank()) {
-			throw new InvalidSpecialistDataException("Lastname cannot be blank");
+			throw new InvalidSpecialistDataException("Last name cannot be blank");
 		}
 		if (bio == null || bio.isBlank()) {
 			throw new InvalidSpecialistDataException("Bio cannot be blank");

@@ -51,7 +51,7 @@ public class SpecialistServiceTest {
 				() -> service.getSpecialist(null));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
-		assertEquals("Specialist id cannot be blank", exception.getMessage());
+		assertEquals("Specialist id cannot be null", exception.getMessage());
 		verify(repository, never()).findById(any());
 	}
 	

@@ -42,7 +42,7 @@ public class ReservationService {
 			throw new IllegalArgumentException("Illegal argument");
 		}
 		if (reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE) ) {
-			throw new IllegalArgumentException("Reservation already exists");
+			throw new SlotAlreadyReservedException("Slot is already reserved");
 		}
 		Reservation reservation = new Reservation(
 				userService.getActiveUser(clientId),
@@ -50,7 +50,7 @@ public class ReservationService {
 				LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
 			
 		try {
-		    return reservationRepository.save(reservation);
+			return reservationRepository.saveAndFlush(reservation);
 		} catch (DataIntegrityViolationException e) {
 			if (isActiveReservationConstraintViolation(e)) {
 				throw new SlotAlreadyReservedException("Slot is already reserved", e);
@@ -66,6 +66,7 @@ public class ReservationService {
 			if (cause instanceof ConstraintViolationException constraintException) {
 				return "unique_active_reservation_slot".equals(constraintException.getConstraintName());
 			}
+			cause = cause.getCause();
 		}
 		
 		return false;

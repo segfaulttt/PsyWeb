@@ -17,7 +17,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>{
 	
 	List<Reservation> findByStatus(ReservationStatus status);
 	
-	Optional<Reservation> findBySlotIdAndStatus(Long slotId, ReservationStatus status);
+	List<Reservation> findBySlotIdAndStatus(Long slotId, ReservationStatus status);
 	
 	@Query(
 			"SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +

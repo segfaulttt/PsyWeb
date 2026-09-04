@@ -235,7 +235,7 @@ public class ReservationServiceTest {
 		Exception exception = assertThrows(IllegalArgumentException.class,
 				() -> reservationService.expireReservation(reservationId));
 		
-		assertEquals("Incorrect id", exception.getMessage());
+		assertEquals("Reservation id cannot be null", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
 	}
 	

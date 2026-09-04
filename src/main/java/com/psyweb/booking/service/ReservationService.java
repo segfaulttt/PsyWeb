@@ -3,11 +3,14 @@ package com.psyweb.booking.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.SlotAlreadyReservedException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.user.service.UserService;
 
@@ -46,13 +49,26 @@ public class ReservationService {
 				slotService.getFreeSlot(slotId),
 				LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
 			
-		return reservationRepository.save(reservation);
-//		later:
-//		try {
-//		    return reservationRepository.save(reservation);
-//		} catch (DataIntegrityViolationException e) {
-//		    throw new ReservationAlreadyExistsException("pupupu...");
-//		}
+		try {
+		    return reservationRepository.save(reservation);
+		} catch (DataIntegrityViolationException e) {
+			if (isActiveReservationConstraintViolation(e)) {
+				throw new SlotAlreadyReservedException("Slot is already reserved", e);
+			}
+			throw e;
+		}
+	}
+	
+	private boolean isActiveReservationConstraintViolation(DataIntegrityViolationException exception) {
+		Throwable cause = exception;
+		
+		while (cause != null) {
+			if (cause instanceof ConstraintViolationException constraintException) {
+				return "unique_active_reservation_slot".equals(constraintException.getConstraintName());
+			}
+		}
+		
+		return false;
 	}
 
 	@Transactional
@@ -64,7 +80,7 @@ public class ReservationService {
 	@Transactional
 	public void expireReservation(Long reservationId) {
 		if (reservationId == null) {
-			throw new IllegalArgumentException("Incorrect id");
+			throw new IllegalArgumentException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservation(reservationId);
 		reservation.expire();

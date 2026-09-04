@@ -1,5 +1,6 @@
 package com.psyweb.specialist.domain;
 
+import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.user.domain.User;
 
 import jakarta.persistence.Column;
@@ -41,16 +42,16 @@ public class Specialist {
 	
 	public Specialist(User user, String firstName, String lastName, String bio) {
 		if (user == null) {
-			throw new IllegalArgumentException("user cannot be blank");
+			throw new InvalidSpecialistDataException("User cannot be blank");
 		}
 		if (firstName == null || firstName.isBlank()) {
-			throw new IllegalArgumentException("Firstname cannot be blank");
+			throw new InvalidSpecialistDataException("Firstname cannot be blank");
 		}
 		if (lastName == null || lastName.isBlank()) {
-			throw new IllegalArgumentException("Lastname cannot be blank");
+			throw new InvalidSpecialistDataException("Lastname cannot be blank");
 		}
 		if (bio == null || bio.isBlank()) {
-			throw new IllegalArgumentException("Bio cannot be blank");
+			throw new InvalidSpecialistDataException("Bio cannot be blank");
 		}
 		this.firstName = firstName;
 		this.lastName = lastName;

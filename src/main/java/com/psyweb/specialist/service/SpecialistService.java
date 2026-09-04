@@ -4,6 +4,9 @@ import org.springframework.stereotype.Service;
 
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.domain.SpecialistStatus;
+import com.psyweb.specialist.exception.InvalidSpecialistDataException;
+import com.psyweb.specialist.exception.SpecialistNotApprovedException;
+import com.psyweb.specialist.exception.SpecialistNotFoundException;
 import com.psyweb.specialist.repository.SpecialistRepository;
 
 @Service
@@ -14,14 +17,20 @@ public class SpecialistService {
 		this.specialistRepository = specialistRepository;
 	}
 	
-	public Specialist getActiveSpecialist(Long id) {
+	public Specialist getSpecialist(Long id) {
 		if (id == null) {
-			throw new IllegalArgumentException("Invalid id");
+			throw new InvalidSpecialistDataException("Specialist id cannot be blank");
 		}
 		Specialist specialist = specialistRepository.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Specialist not found"));
+				.orElseThrow(() -> new SpecialistNotFoundException("Specialist not found"));
+		
+		return specialist;
+	}
+	
+	public Specialist getActiveSpecialist(Long id) {
+		Specialist specialist = getSpecialist(id);
 		if (specialist.getApprovalStatus() != SpecialistStatus.APPROVED) {
-			throw new IllegalArgumentException("Specialist must have status 'APPROVED'");
+			throw new SpecialistNotApprovedException("Specialist must have status 'APPROVED'");
 		}
 		return specialist;
 	}

@@ -49,7 +49,7 @@ public class Reservation {
 			throw new IllegalArgumentException("Incorrect client");
 		}
 		if (slot == null) {
-			throw new IllegalArgumentException("Incorrect slot");
+			throw new IllegalArgumentException("Slot cannot be null");
 		}
 		this.createdAt = LocalDateTime.now();
 		if (expiresAt == null || !expiresAt.isAfter(this.createdAt)) {

@@ -19,6 +19,7 @@ import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.SlotAlreadyReservedException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.booking.service.ReservationService;
 import com.psyweb.specialist.domain.Specialist;
@@ -95,7 +96,7 @@ public class ReservationServiceTest {
 		
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE))
 			.thenReturn(false);
-		when(reservationRepository.save(any(Reservation.class)))
+		when(reservationRepository.saveAndFlush(any(Reservation.class)))
 			.thenAnswer(invocation -> invocation.getArgument(0));
 		when(userService.getActiveUser(clientId))
 			.thenReturn(client);
@@ -106,7 +107,7 @@ public class ReservationServiceTest {
 		
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
-		verify(reservationRepository).save(any(Reservation.class));
+		verify(reservationRepository).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test
@@ -125,7 +126,7 @@ public class ReservationServiceTest {
 				() -> reservationService.createReservation(clientId, slotId));
 		
 		assertEquals("Slot must have status 'FREE'", exception.getMessage());
-		verify(reservationRepository, never()).save(any(Reservation.class));
+		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test
@@ -136,11 +137,12 @@ public class ReservationServiceTest {
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE))
 			.thenReturn(true);
 		
-		Exception exception = assertThrows(IllegalArgumentException.class, 
+		SlotAlreadyReservedException exception = assertThrows(SlotAlreadyReservedException.class, 
 				() -> reservationService.createReservation(clientId, slotId));
 		
-		assertEquals("Reservation already exists", exception.getMessage());
-		verify(reservationRepository, never()).save(any(Reservation.class));
+		assertEquals("SLOT_ALREADY_RESERVED", exception.code());
+		assertEquals("Slot is already reserved", exception.getMessage());
+		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test
@@ -235,7 +237,7 @@ public class ReservationServiceTest {
 		Exception exception = assertThrows(IllegalArgumentException.class,
 				() -> reservationService.expireReservation(reservationId));
 		
-		assertEquals("Incorrect id", exception.getMessage());
+		assertEquals("Reservation id cannot be null", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
 	}
 	

@@ -1,4 +1,4 @@
-package com.psyweb.booking.service;
+package com.psyweb;
 
 import org.junit.jupiter.api.Test;
 

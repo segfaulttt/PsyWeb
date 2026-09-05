@@ -1,4 +1,4 @@
-package com.psyweb.reservation.service;
+package com.psyweb.booking.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,6 @@ import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.SlotAlreadyReservedException;
 import com.psyweb.booking.repository.ReservationRepository;
-import com.psyweb.booking.service.ReservationService;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;

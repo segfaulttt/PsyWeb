@@ -25,8 +25,8 @@ import com.psyweb.user.domain.UserStatus;
 public class SpecialistServiceTest {
 	User userFirst = new User("userfirst@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
 	User userSec = new User("usersec@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
-	private Specialist approvedSpec = new Specialist(userFirst, "First", "Last", "bio");
-	private Specialist pendingSpec = new Specialist(userSec, "Second", "End", "bio");
+	private Specialist approvedSpec = new Specialist(userFirst, "First", "Last");
+	private Specialist pendingSpec = new Specialist(userSec, "Second", "End");
 	
 	@Mock
 	SpecialistRepository repository;

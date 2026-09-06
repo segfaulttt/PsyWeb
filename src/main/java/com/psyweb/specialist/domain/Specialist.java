@@ -31,16 +31,13 @@ public class Specialist {
 	@Column(name = "last_name", nullable = false)
 	private String lastName;
 	
-	@Column(name = "bio")
-	private String bio;
-	
 	@Column(name = "approval_status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private SpecialistStatus approvalStatus;
 	
 	protected Specialist() {}
 	
-	public Specialist(User user, String firstName, String lastName, String bio) {
+	public Specialist(User user, String firstName, String lastName) {
 		if (user == null) {
 			throw new InvalidSpecialistDataException("User cannot be blank");
 		}
@@ -50,12 +47,8 @@ public class Specialist {
 		if (lastName == null || lastName.isBlank()) {
 			throw new InvalidSpecialistDataException("Last name cannot be blank");
 		}
-		if (bio == null || bio.isBlank()) {
-			throw new InvalidSpecialistDataException("Bio cannot be blank");
-		}
 		this.firstName = firstName;
 		this.lastName = lastName;
-		this.bio = bio;
 		this.user = user;
 		this.approvalStatus = SpecialistStatus.PENDING;
 	}
@@ -78,14 +71,6 @@ public class Specialist {
 	
 	public void setLastName(String newLastName) {
 		this.lastName = newLastName;
-	}
-	
-	public String getBio() {
-		return this.bio;
-	}
-	
-	public void setBio(String newBio) {
-		this.bio = newBio;
 	}
 	
 	public SpecialistStatus getApprovalStatus() {

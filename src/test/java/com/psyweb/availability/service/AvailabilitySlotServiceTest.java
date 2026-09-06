@@ -47,8 +47,7 @@ class AvailabilitySlotServiceTest {
         specialist = new Specialist(
             user,
             "firstName",
-            "lastName",
-            "bio"
+            "lastName"
         );
     	
     	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);

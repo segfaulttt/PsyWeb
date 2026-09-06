@@ -64,12 +64,7 @@ public class ReservationServiceTest {
                 UserStatus.ACTIVE
 		);
 		
-		Specialist specialist = new Specialist(
-                user,
-                "firstName",
-                "lastName",
-                "bio"
-        );
+		Specialist specialist = new Specialist(user, "firstName", "lastName");
 		
 		slot = new AvailabilitySlot(
 				specialist,

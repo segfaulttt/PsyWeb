@@ -15,7 +15,7 @@ public class SpecialistTest {
 	@Test
 	public void shouldRejectNullUserOnCreation() {
 		InvalidSpecialistDataException exception = assertThrows(InvalidSpecialistDataException.class,
-				() -> new Specialist(null, "First", "Last", "bio"));
+				() -> new Specialist(null, "First", "Last"));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("User cannot be blank", exception.getMessage());
@@ -24,7 +24,7 @@ public class SpecialistTest {
 	@Test
 	public void shouldRejectBlankFirstNameOnCreation() {
 		InvalidSpecialistDataException exception = assertThrows(InvalidSpecialistDataException.class,
-				() -> new Specialist(user, "   ", "Last", "bio"));
+				() -> new Specialist(user, "   ", "Last"));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("First name cannot be blank", exception.getMessage());
@@ -33,18 +33,9 @@ public class SpecialistTest {
 	@Test
 	public void shouldRejectBlankLastNameOnCreation() {
 		InvalidSpecialistDataException exception = assertThrows(InvalidSpecialistDataException.class,
-				() -> new Specialist(user, "First", "    ", "bio"));
+				() -> new Specialist(user, "First", "    "));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("Last name cannot be blank", exception.getMessage());
-	}
-	
-	@Test
-	public void shouldRejectBlankBioOnCreation() {
-		InvalidSpecialistDataException exception = assertThrows(InvalidSpecialistDataException.class,
-				() -> new Specialist(user, "First", "Last", "    "));
-		
-		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
-		assertEquals("Bio cannot be blank", exception.getMessage());
 	}
 }

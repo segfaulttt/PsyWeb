@@ -75,24 +75,11 @@ public class BookingServiceTest {
                 UserStatus.ACTIVE
             );
 
-            specialist = new Specialist(
-                user,
-                "firstName",
-                "lastName",
-                "bio"
-            );
+            specialist = new Specialist(user, "firstName", "lastName");
             
-            slot = new AvailabilitySlot(
-            	    specialist,
-            	    now,
-            	    now.plusHours(1)
-            );
+            slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
 
-            reservation = new Reservation(
-           	    client,
-           	    slot,
-           	    now.plusMinutes(2)
-           	);
+            reservation = new Reservation(client, slot, now.plusMinutes(2));
             
             ReflectionTestUtils.setField(client, "id", 1L);
             ReflectionTestUtils.setField(specialist, "id", 2L);            

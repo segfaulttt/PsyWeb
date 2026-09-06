@@ -1,0 +1,2 @@
+ALTER TABLE specialists
+DROP COLUMN IF EXISTS bio;

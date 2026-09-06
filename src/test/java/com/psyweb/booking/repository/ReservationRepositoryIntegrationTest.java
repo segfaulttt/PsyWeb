@@ -43,7 +43,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
         		.saveAndFlush(new User("specialist@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
         Specialist specialist = specialistRepository
-        		.saveAndFlush(new Specialist(specialistUser, "Anna", "Smith", "Specialist bio"));
+        		.saveAndFlush(new Specialist(specialistUser, "Anna", "Smith"));
 
         User client = userRepository
         		.saveAndFlush(new User("client@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));

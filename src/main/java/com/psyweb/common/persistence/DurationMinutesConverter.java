@@ -6,22 +6,27 @@ import jakarta.persistence.Converter;
 import jakarta.persistence.AttributeConverter;
 
 @Converter
-public class DurationMinutesConverter implements AttributeConverter<Duration, Long> {	
+public class DurationMinutesConverter implements AttributeConverter<Duration, Integer> {	
 	@Override
-	public Long convertToDatabaseColumn(Duration dbData) {
-		if (dbData == null) {
-			return null;
-		}
-		
-		return dbData.toMinutes();
-	}
-
-	@Override
-	public Duration convertToEntityAttribute(Long attribute) {
+	public Integer convertToDatabaseColumn(Duration attribute) {
 		if (attribute == null) {
 			return null;
 		}
 		
-		return Duration.ofMinutes(attribute);
+		if (attribute.getSeconds() % 60 != 0 || attribute.getNano() != 0) {
+			throw new IllegalArgumentException("Duration must contain whole minutes");
+		}
+		
+		long minutes = attribute.getSeconds() / 60;
+		return Math.toIntExact(minutes);
+	}
+
+	@Override
+	public Duration convertToEntityAttribute(Integer dbData) {
+		if (dbData == null) {
+			return null;
+		}
+		
+		return Duration.ofMinutes(dbData);
 	}
 }

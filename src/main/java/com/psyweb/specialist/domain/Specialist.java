@@ -42,15 +42,15 @@ public class Specialist {
 	
 	@Column(name = "minimum_booking_notice_minutes", nullable = false)
 	@Convert(converter = DurationMinutesConverter.class)
-	private Duration minimumBookingNoticeMinutes;
+	private Duration minimumBookingNotice;
 	
 	@Column(name = "client_cancellation_notice_minutes", nullable = false)
 	@Convert(converter = DurationMinutesConverter.class)
-	private Duration clientCancellationNoticeMinutes;
+	private Duration clientCancellationNotice;
 	
 	protected Specialist() {}
 	
-	public Specialist(User user, String firstName, String lastName, Duration minimumBookingNoticeMinutes, Duration clientCancellationNoticeMinutes) {
+	public Specialist(User user, String firstName, String lastName, Duration minimumBookingNotice, Duration clientCancellationNotice) {
 		if (user == null) {
 			throw new InvalidSpecialistDataException("User cannot be null");
 		}
@@ -59,14 +59,14 @@ public class Specialist {
 		}
 		validateFirstName(firstName);
 		validateLastName(lastName);
-		validateNotice(minimumBookingNoticeMinutes, "Minimum booking notice minutes");
-		validateNotice(clientCancellationNoticeMinutes, "Client cancellation notice minutes");
+		validateNotice(minimumBookingNotice, "Minimum booking notice");
+		validateNotice(clientCancellationNotice, "Client cancellation notice");
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.user = user;
 		this.approvalStatus = SpecialistStatus.PENDING;
-		this.minimumBookingNoticeMinutes = minimumBookingNoticeMinutes;
-		this.clientCancellationNoticeMinutes = clientCancellationNoticeMinutes;
+		this.minimumBookingNotice = minimumBookingNotice;
+		this.clientCancellationNotice = clientCancellationNotice;
 	}
 	
 	private static void validateFirstName(String firstName) {
@@ -112,10 +112,10 @@ public class Specialist {
 	}
 	
 	public Duration getMinimumBookingNotice() {
-		return this.minimumBookingNoticeMinutes;
+		return this.minimumBookingNotice;
 	}
 	public Duration getClientCancellationNotice() {
-		return this.clientCancellationNoticeMinutes;
+		return this.clientCancellationNotice;
 	}
 	
 	public void changeFirstName(String newFirstName) {
@@ -129,13 +129,13 @@ public class Specialist {
 	}
 	
 	public void changeMinimumBookingNotice(Duration newNotice) {
-		validateNotice(newNotice, "Minimum booking notice minutes");
-		this.minimumBookingNoticeMinutes = newNotice;
+		validateNotice(newNotice, "Minimum booking notice");
+		this.minimumBookingNotice = newNotice;
 	}
 	
 	public void changeClientCancellationNotice(Duration newNotice) {
-		validateNotice(newNotice, "Client cancellation notice minutes");
-		this.clientCancellationNoticeMinutes = newNotice;
+		validateNotice(newNotice, "Client cancellation notice");
+		this.clientCancellationNotice = newNotice;
 	}
 	
 	public SpecialistStatus getApprovalStatus() {

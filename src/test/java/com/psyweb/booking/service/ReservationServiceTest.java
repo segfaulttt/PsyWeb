@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -64,7 +65,7 @@ public class ReservationServiceTest {
                 UserStatus.ACTIVE
 		);
 		
-		Specialist specialist = new Specialist(user, "firstName", "lastName");
+		Specialist specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
 		
 		slot = new AvailabilitySlot(
 				specialist,

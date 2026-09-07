@@ -2,6 +2,7 @@ package com.psyweb.booking.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +56,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
         		.saveAndFlush(new User("specialist@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
         Specialist specialist = specialistRepository
-        		.saveAndFlush(new Specialist(specialistUser, "Anna", "Smith"));
+        		.saveAndFlush(new Specialist(specialistUser, "Anna", "Smith", Duration.ZERO, Duration.ZERO));
 
         User client = userRepository
         		.saveAndFlush(new User("client@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));

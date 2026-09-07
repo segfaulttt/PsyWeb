@@ -3,6 +3,7 @@ package com.psyweb.specialist.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -25,8 +26,8 @@ import com.psyweb.user.domain.UserStatus;
 public class SpecialistServiceTest {
 	User userFirst = new User("userfirst@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
 	User userSec = new User("usersec@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
-	private Specialist approvedSpec = new Specialist(userFirst, "First", "Last");
-	private Specialist pendingSpec = new Specialist(userSec, "Second", "End");
+	private Specialist approvedSpec = new Specialist(userFirst, "First", "Last", Duration.ZERO, Duration.ZERO);
+	private Specialist pendingSpec = new Specialist(userSec, "Second", "End", Duration.ZERO, Duration.ZERO);
 	
 	@Mock
 	SpecialistRepository repository;

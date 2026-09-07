@@ -1,5 +1,6 @@
 package com.psyweb.booking.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -75,7 +76,7 @@ public class BookingServiceTest {
                 UserStatus.ACTIVE
             );
 
-            specialist = new Specialist(user, "firstName", "lastName");
+            specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
             
             slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
 

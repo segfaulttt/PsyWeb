@@ -1,9 +1,14 @@
 package com.psyweb.specialist.domain;
 
+import java.time.Duration;
+
+import com.psyweb.common.persistence.DurationMinutesConverter;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.user.domain.User;
+import com.psyweb.user.domain.UserRole;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -35,42 +40,102 @@ public class Specialist {
 	@Enumerated(EnumType.STRING)
 	private SpecialistStatus approvalStatus;
 	
+	@Column(name = "minimum_booking_notice_minutes", nullable = false)
+	@Convert(converter = DurationMinutesConverter.class)
+	private Duration minimumBookingNotice;
+	
+	@Column(name = "client_cancellation_notice_minutes", nullable = false)
+	@Convert(converter = DurationMinutesConverter.class)
+	private Duration clientCancellationNotice;
+	
 	protected Specialist() {}
 	
-	public Specialist(User user, String firstName, String lastName) {
+	public Specialist(User user, String firstName, String lastName, Duration minimumBookingNotice, Duration clientCancellationNotice) {
 		if (user == null) {
-			throw new InvalidSpecialistDataException("User cannot be blank");
+			throw new InvalidSpecialistDataException("User cannot be null");
 		}
-		if (firstName == null || firstName.isBlank()) {
-			throw new InvalidSpecialistDataException("First name cannot be blank");
+		if (user.getRole() != UserRole.SPECIALIST) {
+			throw new InvalidSpecialistDataException("User must have SPECIALIST role");
 		}
-		if (lastName == null || lastName.isBlank()) {
-			throw new InvalidSpecialistDataException("Last name cannot be blank");
-		}
+		validateFirstName(firstName);
+		validateLastName(lastName);
+		validateNotice(minimumBookingNotice, "Minimum booking notice");
+		validateNotice(clientCancellationNotice, "Client cancellation notice");
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.user = user;
 		this.approvalStatus = SpecialistStatus.PENDING;
+		this.minimumBookingNotice = minimumBookingNotice;
+		this.clientCancellationNotice = clientCancellationNotice;
+	}
+	
+	private static void validateFirstName(String firstName) {
+		if (firstName == null || firstName.isBlank()) {
+			throw new InvalidSpecialistDataException("First name cannot be blank");
+		}
+	}
+	
+	private static void validateLastName(String lastName) {
+		if (lastName == null || lastName.isBlank()) {
+			throw new InvalidSpecialistDataException("Last name cannot be blank");
+		}
+	}
+	
+	private static void validateNotice(Duration notice, String fieldName) {
+		if (notice == null) {
+			throw new InvalidSpecialistDataException(fieldName + " cannot be null");
+		}
+			
+		if (notice.isNegative()) {
+			throw new InvalidSpecialistDataException(fieldName + " cannot be negative");
+		}
+			
+		if (notice.getSeconds() % 60 != 0 || notice.getNano() != 0) {
+			throw new InvalidSpecialistDataException(fieldName + " must contain whole minutes");
+		}
+			
+		if (notice.toMinutes() > Integer.MAX_VALUE) {
+			throw new InvalidSpecialistDataException(fieldName + " exceeds supported range");
+		}
 	}
 	
 	public Long getId() {
-	    return user.getId();
+	    return id;
 	}
 	
 	public String getFirstName() {
 		return this.firstName;
 	}
 	
-	public void setFirstName(String newFirstName) {
-		this.firstName = newFirstName;
-	}
-	
 	public String getLastName() {
 		return this.lastName;
 	}
 	
-	public void setLastName(String newLastName) {
+	public Duration getMinimumBookingNotice() {
+		return this.minimumBookingNotice;
+	}
+	public Duration getClientCancellationNotice() {
+		return this.clientCancellationNotice;
+	}
+	
+	public void changeFirstName(String newFirstName) {
+		validateFirstName(newFirstName);
+		this.firstName = newFirstName;
+	}
+	
+	public void changeLastName(String newLastName) {
+		validateLastName(newLastName);
 		this.lastName = newLastName;
+	}
+	
+	public void changeMinimumBookingNotice(Duration newNotice) {
+		validateNotice(newNotice, "Minimum booking notice");
+		this.minimumBookingNotice = newNotice;
+	}
+	
+	public void changeClientCancellationNotice(Duration newNotice) {
+		validateNotice(newNotice, "Client cancellation notice");
+		this.clientCancellationNotice = newNotice;
 	}
 	
 	public SpecialistStatus getApprovalStatus() {

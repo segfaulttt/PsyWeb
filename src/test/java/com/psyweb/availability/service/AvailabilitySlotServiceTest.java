@@ -3,6 +3,7 @@ package com.psyweb.availability.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -47,7 +48,9 @@ class AvailabilitySlotServiceTest {
         specialist = new Specialist(
             user,
             "firstName",
-            "lastName"
+            "lastName",
+            Duration.ZERO, 
+            Duration.ZERO
         );
     	
     	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);

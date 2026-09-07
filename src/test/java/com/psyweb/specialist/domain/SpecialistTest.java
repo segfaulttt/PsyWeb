@@ -139,7 +139,7 @@ public class SpecialistTest {
 		assertEquals("Client cancellation notice cannot be negative", except.getMessage());
 		
 		InvalidSpecialistDataException excep = assertThrows(InvalidSpecialistDataException.class,
-				() -> new Specialist(user, "First", "Last", Duration.ofHours(2), Duration.ofMinutes(5).plusNanos(1)));
+				() -> new Specialist(user, "First", "Last", Duration.ofHours(2), Duration.ofMinutes(5).plusSeconds(1)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", excep.code());
 		assertEquals("Client cancellation notice must contain whole minutes", excep.getMessage());
@@ -241,24 +241,28 @@ public class SpecialistTest {
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("Minimum booking notice cannot be null", exception.getMessage());
+		assertEquals(Duration.ZERO, specialist.getMinimumBookingNotice());
 		
 		InvalidSpecialistDataException except = assertThrows(InvalidSpecialistDataException.class,
 				() -> specialist.changeMinimumBookingNotice(Duration.ofMinutes(-1)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", except.code());
 		assertEquals("Minimum booking notice cannot be negative", except.getMessage());
+		assertEquals(Duration.ZERO, specialist.getMinimumBookingNotice());
 		
 		InvalidSpecialistDataException excep = assertThrows(InvalidSpecialistDataException.class,
-				() -> specialist.changeMinimumBookingNotice(Duration.ofMinutes(5).plusNanos(1)));
+				() -> specialist.changeMinimumBookingNotice(Duration.ofMinutes(5).plusSeconds(1)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", excep.code());
 		assertEquals("Minimum booking notice must contain whole minutes", excep.getMessage());
+		assertEquals(Duration.ZERO, specialist.getMinimumBookingNotice());
 		
 		InvalidSpecialistDataException ex = assertThrows(InvalidSpecialistDataException.class,
 				() -> specialist.changeMinimumBookingNotice(Duration.ofMinutes(Integer.MAX_VALUE + 1L)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", ex.code());
 		assertEquals("Minimum booking notice exceeds supported range", ex.getMessage());
+		assertEquals(Duration.ZERO, specialist.getMinimumBookingNotice());
 		
 	}
 	
@@ -281,23 +285,27 @@ public class SpecialistTest {
 		
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("Client cancellation notice cannot be null", exception.getMessage());
+		assertEquals(Duration.ZERO, specialist.getClientCancellationNotice());
 		
 		InvalidSpecialistDataException except = assertThrows(InvalidSpecialistDataException.class,
 				() -> specialist.changeClientCancellationNotice(Duration.ofMinutes(-1)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", except.code());
 		assertEquals("Client cancellation notice cannot be negative", except.getMessage());
+		assertEquals(Duration.ZERO, specialist.getClientCancellationNotice());
 		
 		InvalidSpecialistDataException excep = assertThrows(InvalidSpecialistDataException.class,
 				() -> specialist.changeClientCancellationNotice(Duration.ofMinutes(5).plusNanos(1)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", excep.code());
 		assertEquals("Client cancellation notice must contain whole minutes", excep.getMessage());
+		assertEquals(Duration.ZERO, specialist.getClientCancellationNotice());
 		
 		InvalidSpecialistDataException ex = assertThrows(InvalidSpecialistDataException.class,
 				() -> specialist.changeClientCancellationNotice(Duration.ofMinutes(Integer.MAX_VALUE + 1L)));
 		
 		assertEquals("SPECIALIST_INVALID_DATA", ex.code());
 		assertEquals("Client cancellation notice exceeds supported range", ex.getMessage());
+		assertEquals(Duration.ZERO, specialist.getClientCancellationNotice());
 	}
 }

@@ -43,3 +43,5 @@ out/
 application-local.yml
 .testcontainers/
 .env
+
+/.metadata/

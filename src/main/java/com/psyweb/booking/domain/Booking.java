@@ -55,7 +55,7 @@ public class Booking {
 	
 	protected Booking() {}
 	
-	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation) {
+	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation, LocalDateTime createdAt) {
 		if (client == null) {
 			throw new IllegalArgumentException("Client cannot be blank");
 		}
@@ -68,7 +68,10 @@ public class Booking {
 		if (reservation == null || reservation.getStatus() != ReservationStatus.CONFIRMED) {
 			throw new IllegalArgumentException("Reservation cannot be blank");
 		}
-		this.createdAt = LocalDateTime.now();
+		if (createdAt == null) {
+			throw new IllegalArgumentException("Creation time cannot be blank");
+		}
+		this.createdAt = createdAt;
 		this.client = client;
 		this.specialist = specialist;
 		this.slot = slot;

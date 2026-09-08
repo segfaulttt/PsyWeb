@@ -1,5 +1,6 @@
 package com.psyweb.booking.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,17 +28,20 @@ public class BookingService {
     private final SpecialistService specialistService;
     private final AvailabilitySlotService slotService;
     private final ReservationService reservationService;
+    private final Clock clock;
 
 	public BookingService(BookingRepository bookingRepository,  
 			UserService userService, 
 			SpecialistService specialistService,
 			AvailabilitySlotService slotService,
-			ReservationService reservationService) {
+			ReservationService reservationService,
+			Clock clock) {
 		this.bookingRepository = bookingRepository;
 		this.userService = userService;
 		this.specialistService = specialistService;
 		this.slotService = slotService;
 		this.reservationService = reservationService;
+		this.clock = clock;
 	}
 	
 	@Transactional
@@ -60,7 +64,8 @@ public class BookingService {
 		AvailabilitySlot slot = slotService.getFreeSlot(reservation.getSlotId());
 		Specialist specialist = specialistService.getActiveSpecialist(slot.getSpecialistId());
 		reservation.confirm();
-		Booking booking = new Booking(client, specialist, slot, reservation);
+		LocalDateTime now = LocalDateTime.now(clock);
+		Booking booking = new Booking(client, specialist, slot, reservation, now);
 		slot.markBooked();
 		
 		return bookingRepository.save(booking);
@@ -73,7 +78,7 @@ public class BookingService {
 		}
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new IllegalArgumentException("Booking not found"));
-		booking.cancel(LocalDateTime.now());
+		booking.cancel(LocalDateTime.now(clock));
 		slotService.releaseBookedSlot(booking.getSlotId());
 	}
 	

@@ -1,14 +1,16 @@
 package com.psyweb.booking.service;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -34,11 +36,15 @@ import com.psyweb.user.service.UserService;
 @ExtendWith(MockitoExtension.class)
 public class BookingServiceTest {
 	
+	private BookingService bookingService;
 	private Specialist specialist;
 	private User client;
 	private AvailabilitySlot slot;
 	private Reservation reservation;
-	private LocalDateTime now;
+	private final Clock clock = Clock.fixed(
+	        Instant.parse("2099-01-01T10:00:00Z"),
+	        ZoneId.of("UTC"));
+	private final LocalDateTime now = LocalDateTime.now(clock);
 	
 	@Mock
 	BookingRepository bookingRepository;
@@ -54,14 +60,18 @@ public class BookingServiceTest {
     
     @Mock
     SpecialistService specialistService;
-
-    @InjectMocks
-    BookingService bookingService;
     
     @BeforeEach
     void setUp() {
-    	now = LocalDateTime.now();
-    	
+    	bookingService = new BookingService(
+    	        bookingRepository,
+    	        userService,
+    	        specialistService,
+    	        slotService,
+    	        reservationService,
+    	        clock
+    	);
+    	    	
     	client = new User(
     			"example@email.ru",
     			"password",
@@ -110,6 +120,7 @@ public class BookingServiceTest {
     	assertEquals(client.getId(), result.getClientId());
     	assertEquals(slot.getId(), result.getSlotId());
     	assertEquals(reservation.getId(), result.getReservationId());
+    	assertEquals(now, result.getCreatedAt());
     	
     	assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
@@ -160,23 +171,27 @@ public class BookingServiceTest {
 
     @Test
     void shouldExpireReservationWhenExpired() {
-    	Long reservationId = 100L;
-    	Long clientId = 1L;
-    	Reservation expired = new Reservation(client, slot, now.plusMinutes(15));
-    	ReflectionTestUtils.setField(expired, "expiresAt", now.minusMinutes(10));
-    	ReflectionTestUtils.setField(expired, "id", 100L);
-    	
-    	when(reservationService.getReservation(reservationId))
-    		.thenReturn(expired);
-    	
-    	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> bookingService.confirmReservation(reservationId, clientId));
-    	
-    	assertEquals("Reservation already expired", exception.getMessage());
-    	assertEquals(ReservationStatus.EXPIRED, expired.getStatus());
-    	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
-    	verify(bookingRepository, never()).save(any());
-    	
+        Long reservationId = 100L;
+        Long clientId = 1L;
+        Reservation expired = mock(Reservation.class);
+
+        when(reservationService.getReservation(reservationId))
+                .thenReturn(expired);
+        when(expired.getClientId())
+                .thenReturn(clientId);
+        when(expired.isExpired())
+                .thenReturn(true);
+
+        Exception exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> bookingService.confirmReservation(reservationId, clientId)
+        );
+
+        assertEquals("Reservation already expired", exception.getMessage());
+
+        verify(expired).expire();
+        verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(userService, specialistService, slotService);
     }
 
     @Test
@@ -202,7 +217,7 @@ public class BookingServiceTest {
     	Long bookingId = 1L;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking booking = new Booking(client, specialist, slot, reservation);
+    	Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
     	ReflectionTestUtils.setField(booking, "id", bookingId);
     	
     	when(bookingRepository.findById(bookingId))
@@ -214,6 +229,7 @@ public class BookingServiceTest {
     	
     	assertEquals(BookingStatus.CANCELLED, booking.getStatus());
     	assertNotEquals(null, booking.getCancelledAt());
+    	assertEquals(now, booking.getCancelledAt());
     	verify(slotService).releaseBookedSlot(slot.getId());
     }
 
@@ -234,7 +250,7 @@ public class BookingServiceTest {
     	Long bookingId = 1L;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking booking = new Booking(client, specialist, slot, reservation);
+    	Booking booking = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(booking, "id", bookingId);
     	
     	when(bookingRepository.findById(bookingId))
@@ -252,7 +268,7 @@ public class BookingServiceTest {
     void shouldNotReleaseSlotWhenCancelThrowsException() {
     	Long bookingId = 1L;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
-    	Booking booking = new Booking(client, specialist, slot, reservation);
+    	Booking booking = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(booking, "id", bookingId);
     	booking.complete();
     	
@@ -272,13 +288,13 @@ public class BookingServiceTest {
     	BookingStatus status = null;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation);
+    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingF, "id", 1L);
     	bookingF.complete();
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation);
+    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(LocalDateTime.now());
+    	bookingS.cancel(now.plusMinutes(1));
     	
     	when(bookingRepository.findByClientId(clientId))
     		.thenReturn(List.of(bookingF, bookingS));
@@ -296,13 +312,13 @@ public class BookingServiceTest {
     	BookingStatus status = BookingStatus.CANCELLED;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation);
+    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingF, "id", 1L);
     	bookingF.complete();
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation);
+    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(LocalDateTime.now());
+    	bookingS.cancel(now.plusMinutes(1));
     	
     	when(bookingRepository.findByClientId(clientId))
     		.thenReturn(List.of(bookingF, bookingS));
@@ -332,13 +348,13 @@ public class BookingServiceTest {
     	BookingStatus status = null;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation);
+    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingF, "id", 1L);
     	bookingF.complete();
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation);
+    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(LocalDateTime.now());
+    	bookingS.cancel(now.plusMinutes(1));
     	
     	when(bookingRepository.findBySpecialistId(specialistId))
     		.thenReturn(List.of(bookingF, bookingS));
@@ -356,13 +372,13 @@ public class BookingServiceTest {
     	BookingStatus status = BookingStatus.CANCELLED;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation);
+    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingF, "id", 1L);
     	bookingF.complete();
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation);
+    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
     	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(LocalDateTime.now());
+    	bookingS.cancel(now.plusMinutes(1));
     	
     	when(bookingRepository.findBySpecialistId(specialistId))
 		.thenReturn(List.of(bookingF, bookingS));

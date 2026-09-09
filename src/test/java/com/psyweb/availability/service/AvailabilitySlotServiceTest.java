@@ -3,8 +3,11 @@ package com.psyweb.availability.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +20,8 @@ import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.specialist.domain.Specialist;
+import com.psyweb.specialist.exception.SpecialistNotApprovedException;
+import com.psyweb.specialist.service.SpecialistService;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
@@ -30,13 +35,20 @@ class AvailabilitySlotServiceTest {
     private Specialist specialist;
     private AvailabilitySlotService slotService;
     private static final Long SLOT_ID = 1L;
+    private final Clock clock = Clock.fixed(
+	        Instant.parse("2099-01-01T10:00:00Z"),
+	        ZoneId.of("UTC"));
+	private final LocalDateTime now = LocalDateTime.now(clock);
 
     @Mock
     private AvailabilitySlotRepository slotRepository;
 
+    @Mock
+    private SpecialistService specialistService;
+
     @BeforeEach
     void setUp() {
-    	slotService = new AvailabilitySlotService(slotRepository);
+    	slotService = new AvailabilitySlotService(slotRepository, specialistService, clock);
 
         User user = new User(
             "email@gmail.com",
@@ -53,8 +65,8 @@ class AvailabilitySlotServiceTest {
             Duration.ZERO
         );
     	
-    	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
-    	LocalDateTime end = LocalDateTime.of(2026,7,10,11,0);
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(2);
         slot = new AvailabilitySlot(specialist, start, end);
     }
 
@@ -63,16 +75,18 @@ class AvailabilitySlotServiceTest {
     	Specialist specialist = mock(Specialist.class);
 
     	when(specialist.getId())
-    	    .thenReturn(1L);
-    	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
-    	LocalDateTime end = LocalDateTime.of(2026,7,10,11,0);
+	    	.thenReturn(1L);
+    	when(specialistService.getActiveSpecialist(specialist.getId()))
+    	    .thenReturn(specialist);
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(2);
     	
     	when(slotRepository.existsOverlappingSlot(1L, start, end))
     		.thenReturn(false);
     	when(slotRepository.save(any(AvailabilitySlot.class)))
     		.thenAnswer(invocation -> invocation.getArgument(0));
     	ArgumentCaptor<AvailabilitySlot> captor = ArgumentCaptor.forClass(AvailabilitySlot.class);
-    	AvailabilitySlot result = slotService.createSlot(specialist, start, end);
+    	AvailabilitySlot result = slotService.createSlot(specialist.getId(), start, end);
     	
     	assertEquals(specialist.getId(), result.getSpecialistId());
     	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
@@ -88,11 +102,11 @@ class AvailabilitySlotServiceTest {
     
     @Test
     void shouldRejectInvalidTime() {
-    	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
-    	LocalDateTime end = LocalDateTime.of(2026,7,10,9,0);
-    	
+    	LocalDateTime start = now.plusMinutes(10);
+    	LocalDateTime end = now.plusMinutes(5);
+
     	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> slotService.createSlot(specialist, start, end));
+    			() -> slotService.createSlot(1L, start, end));
     	
     	assertEquals("Start must be before end", exception.getMessage());
     }
@@ -171,22 +185,127 @@ class AvailabilitySlotServiceTest {
     
     @Test
     void shouldRejectSlotCreationWhenOverlapExists() {
-    	LocalDateTime start = LocalDateTime.of(2026,7,10,10,0);
-    	LocalDateTime end = LocalDateTime.of(2026,7,10,11,0);
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(2);
 
-    	Specialist specialist = mock(Specialist.class);
-
-    	when(specialist.getId())
-    	    .thenReturn(1L);
-    	
     	when(slotRepository.existsOverlappingSlot(1L, start, end))
     		.thenReturn(true);
     	
     	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> slotService.createSlot(specialist, start, end));
+    			() -> slotService.createSlot(1L, start, end));
     	
     	assertEquals("Overlap", exception.getMessage());
     	verify(slotRepository, never()).save(any());
     	verify(slotRepository).existsOverlappingSlot(1L, start, end);
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenSpecialistIdIsNull() {
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(2);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(null, start, end));
+    	
+    	assertEquals("Specialist id cannot be null", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenStartTimeIsNull() {
+    	LocalDateTime end = now.plusHours(2);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(1L, null, end));
+    	
+    	assertEquals("Time cannot be null", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(any(), any(), any());
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenEndTimeIsNull() {
+    	LocalDateTime start = now.plusHours(1);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(1L, start, null));
+    	
+    	assertEquals("Time cannot be null", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(any(), any(), any());
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenStartEqualsEnd() {
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(1);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(1L, start, end));
+    	
+    	assertEquals("Start must be before end", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenStartTimeIsInPast() {
+    	LocalDateTime start = now.minusMinutes(5);
+    	LocalDateTime end = now.plusHours(1);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(1L, start, end));
+    	
+    	assertEquals("Start time must be after now", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
+    }
+    
+    @Test
+    public void shouldRejectSlotCreationWhenStartTimeEqualsNow() {
+    	LocalDateTime end = now.plusHours(1);
+    	
+    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    			() -> slotService.createSlot(1L, now, end));
+    	
+    	assertEquals("Start time must be after now", exception.getMessage());
+    	
+    	verify(specialistService, never()).getActiveSpecialist(any());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository, never()).existsOverlappingSlot(1L, now, end);
+    }
+    
+    @Test
+    public void shouldNotSaveSlotWhenSpecialistValidationFails() {
+    	Specialist specialist = mock(Specialist.class);
+
+    	LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(2);
+    	
+    	when(slotRepository.existsOverlappingSlot(1L, start, end))
+    		.thenReturn(false);
+    	when(specialist.getId())
+    		.thenReturn(1L);
+    	when(specialistService.getActiveSpecialist(specialist.getId()))
+	    	.thenThrow(SpecialistNotApprovedException.class);
+    	
+    	
+    	SpecialistNotApprovedException exception = assertThrows(SpecialistNotApprovedException.class, 
+    			() -> slotService.createSlot(1L, start, end));
+    	
+    	verify(specialistService).getActiveSpecialist(specialist.getId());
+    	verify(slotRepository, never()).save(any());
+        verify(slotRepository).existsOverlappingSlot(1L, start, end);
     }
 }

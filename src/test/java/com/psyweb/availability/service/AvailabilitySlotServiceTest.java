@@ -188,6 +188,8 @@ class AvailabilitySlotServiceTest {
     	LocalDateTime start = now.plusHours(1);
     	LocalDateTime end = now.plusHours(2);
 
+    	when(specialistService.getActiveSpecialist(1L))
+    		.thenReturn(specialist);
     	when(slotRepository.existsOverlappingSlot(1L, start, end))
     		.thenReturn(true);
     	
@@ -293,19 +295,19 @@ class AvailabilitySlotServiceTest {
     	LocalDateTime start = now.plusHours(1);
     	LocalDateTime end = now.plusHours(2);
     	
-    	when(slotRepository.existsOverlappingSlot(1L, start, end))
-    		.thenReturn(false);
     	when(specialist.getId())
     		.thenReturn(1L);
     	when(specialistService.getActiveSpecialist(specialist.getId()))
-	    	.thenThrow(SpecialistNotApprovedException.class);
+    		.thenThrow(new SpecialistNotApprovedException("Specialist must have status 'APPROVED'"));
     	
     	
     	SpecialistNotApprovedException exception = assertThrows(SpecialistNotApprovedException.class, 
     			() -> slotService.createSlot(1L, start, end));
     	
+    	assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
+    	
     	verify(specialistService).getActiveSpecialist(specialist.getId());
     	verify(slotRepository, never()).save(any());
-        verify(slotRepository).existsOverlappingSlot(1L, start, end);
+        verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
     }
 }

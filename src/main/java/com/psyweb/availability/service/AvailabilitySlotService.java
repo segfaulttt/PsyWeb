@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
+import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.service.SpecialistService;
 
 @Service
@@ -30,6 +31,7 @@ public class AvailabilitySlotService {
 		if (specialistId == null) {
 			throw new IllegalArgumentException("Specialist id cannot be null");
 		}
+		
 		if (startTime == null || endTime == null) {
 			throw new IllegalArgumentException("Time cannot be null");
 		}
@@ -39,11 +41,14 @@ public class AvailabilitySlotService {
 		if (!startTime.isBefore(endTime)) {
 			throw new IllegalArgumentException("Start must be before end");
 		}
+		
+		Specialist specialist = specialistService.getActiveSpecialist(specialistId);
+		
 		if (slotRepository.existsOverlappingSlot(specialistId, startTime, endTime)) {
 			throw new IllegalArgumentException("Overlap");
 		}
 		
-		AvailabilitySlot newSlot = new AvailabilitySlot(specialistService.getActiveSpecialist(specialistId), startTime, endTime);
+		AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
 		
 		return slotRepository.save(newSlot);
 	}

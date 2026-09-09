@@ -1,4 +1,4 @@
-package com.psyweb.availability.service;
+package com.psyweb.availability.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.specialist.domain.Specialist;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,6 +57,17 @@ public class AvailabilitySlotTest {
 	public void shouldRejectCreationWhenStartEqualsEnd() {
 		Specialist specialist = mock(Specialist.class);
 		LocalDateTime start = now.plusHours(1);
+    	LocalDateTime end = now.plusHours(1);
+		Exception exception = assertThrows(IllegalArgumentException.class, 
+				() -> new AvailabilitySlot(specialist, start, end));
+		
+		assertEquals("Start must be before end", exception.getMessage());
+	}
+	
+	@Test
+	public void shouldRejectCreationWhenStartIsAfterEnd() {
+		Specialist specialist = mock(Specialist.class);
+		LocalDateTime start = now.plusHours(2);
     	LocalDateTime end = now.plusHours(1);
 		Exception exception = assertThrows(IllegalArgumentException.class, 
 				() -> new AvailabilitySlot(specialist, start, end));

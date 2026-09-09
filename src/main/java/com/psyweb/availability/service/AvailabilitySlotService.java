@@ -1,5 +1,6 @@
 package com.psyweb.availability.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -8,31 +9,41 @@ import org.springframework.stereotype.Service;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
-import com.psyweb.specialist.domain.Specialist;
+import com.psyweb.specialist.service.SpecialistService;
 
 @Service
 public class AvailabilitySlotService {
 	private final AvailabilitySlotRepository slotRepository;
-	
-	public AvailabilitySlotService(AvailabilitySlotRepository slotRepository) {
-		this.slotRepository = slotRepository;
+	private final SpecialistService specialistService;
+	private final Clock clock;
+
+	public AvailabilitySlotService(
+	        AvailabilitySlotRepository slotRepository,
+	        SpecialistService specialistService,
+	        Clock clock) {
+	    this.slotRepository = slotRepository;
+	    this.specialistService = specialistService;
+	    this.clock = clock;
 	}
 	
-	public AvailabilitySlot createSlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
-		if (specialist == null) {
-			throw new IllegalArgumentException("specialist cannot be null");
+	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
+		if (specialistId == null) {
+			throw new IllegalArgumentException("Specialist id cannot be null");
 		}
 		if (startTime == null || endTime == null) {
 			throw new IllegalArgumentException("Time cannot be null");
 		}
+		if (!startTime.isAfter(LocalDateTime.now(clock))) {
+			throw new IllegalArgumentException("Start time must be after now");
+		}
 		if (!startTime.isBefore(endTime)) {
 			throw new IllegalArgumentException("Start must be before end");
 		}
-		if (slotRepository.existsOverlappingSlot(specialist.getId(), startTime, endTime)) {
+		if (slotRepository.existsOverlappingSlot(specialistId, startTime, endTime)) {
 			throw new IllegalArgumentException("Overlap");
 		}
 		
-		AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
+		AvailabilitySlot newSlot = new AvailabilitySlot(specialistService.getActiveSpecialist(specialistId), startTime, endTime);
 		
 		return slotRepository.save(newSlot);
 	}

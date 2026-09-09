@@ -47,6 +47,9 @@ public class AvailabilitySlot {
 		if (!startTime.isBefore(endTime)) {
 		    throw new IllegalArgumentException("Start must be before end");
 		}
+		if (specialist == null) {
+			throw new IllegalArgumentException("Specialist cannot be null");
+		}
 		this.specialist = specialist;
 		this.startTime = startTime;
 		this.endTime = endTime;

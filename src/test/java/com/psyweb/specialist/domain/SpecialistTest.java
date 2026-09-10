@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
@@ -15,6 +16,30 @@ public class SpecialistTest {
 	private final User user = new User("userfirst@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
 	private final User client = new User("client@example.ru", "passwordsec", UserRole.CLIENT, UserStatus.ACTIVE);
 	private final User admin = new User("admin@example.ru", "passwordthird", UserRole.ADMIN, UserStatus.ACTIVE);
+	Specialist appSpec;
+	Specialist susSpec;
+	Specialist rejSpec;
+	Specialist penSpec;
+	
+	@BeforeEach
+	void seUp() {
+		User appUser = new User("appuser@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+		User susUser = new User("sususer@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+		User rejUser = new User("rejuser@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+		User penUser = new User("penuser@example.ru", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+		
+		appSpec = new Specialist(appUser, "Ann", "Rid", Duration.ZERO, Duration.ZERO);
+		susSpec = new Specialist(susUser, "Kate", "Jones", Duration.ZERO, Duration.ZERO);
+		rejSpec = new Specialist(rejUser, "Hanna", "Smith", Duration.ZERO, Duration.ZERO);
+		penSpec = new Specialist(penUser, "Mary", "Williams", Duration.ZERO, Duration.ZERO);
+		
+		appSpec.approve();
+		
+		susSpec.approve();
+		susSpec.suspend();
+		
+		rejSpec.reject();
+	}
 	
 	@Test
 	public void shouldRejectNullUserOnCreation() {
@@ -307,5 +332,40 @@ public class SpecialistTest {
 		assertEquals("SPECIALIST_INVALID_DATA", ex.code());
 		assertEquals("Client cancellation notice exceeds supported range", ex.getMessage());
 		assertEquals(Duration.ZERO, specialist.getClientCancellationNotice());
+	}
+	
+	@Test
+	public void shouldApproveSpecialist() {		
+		penSpec.approve();
+		
+		assertEquals(SpecialistStatus.APPROVED, penSpec.getApprovalStatus());
+	}
+	
+	@Test
+	public void shouldRejectSpecialist() {
+		penSpec.reject();
+		
+		assertEquals(SpecialistStatus.REJECTED, penSpec.getApprovalStatus());
+	}
+	
+	@Test
+	public void shouldResubmitSpecialist() {
+		rejSpec.resubmit();
+		
+		assertEquals(SpecialistStatus.PENDING, rejSpec.getApprovalStatus());
+	}
+	
+	@Test
+	public void shouldSuspendSpecialist() {
+		appSpec.suspend();
+		
+		assertEquals(SpecialistStatus.SUSPENDED, appSpec.getApprovalStatus());
+	}
+	
+	@Test
+	public void shouldReinstateSpecialist() {
+		susSpec.reinstate();
+		
+		assertEquals(SpecialistStatus.APPROVED, susSpec.getApprovalStatus());
 	}
 }

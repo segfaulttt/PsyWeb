@@ -4,6 +4,7 @@ import java.time.Duration;
 
 import com.psyweb.common.persistence.DurationMinutesConverter;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
+import com.psyweb.specialist.exception.InvalidSpecialistStateException;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 
@@ -142,11 +143,43 @@ public class Specialist {
 		return this.approvalStatus;
 	}
 	
-	void approve() {
-		this.approvalStatus = SpecialistStatus.APPROVED;
+	public void approve() {
+		if (this.approvalStatus == SpecialistStatus.PENDING) {
+			this.approvalStatus = SpecialistStatus.APPROVED;
+		} else {
+			throw new InvalidSpecialistStateException("Cannot approve specialist with status " + approvalStatus);
+		}
 	}
 	
-	void reject() {
-		this.approvalStatus = SpecialistStatus.REJECTED;
+	public void reject() {
+		if (this.approvalStatus == SpecialistStatus.PENDING) {
+			this.approvalStatus = SpecialistStatus.REJECTED;
+		} else {
+			throw new InvalidSpecialistStateException("Cannot reject specialist with status " + approvalStatus);
+		}
+	}
+	
+	public void resubmit() {
+		if (this.approvalStatus == SpecialistStatus.REJECTED) {
+			this.approvalStatus = SpecialistStatus.PENDING;
+		} else {
+			throw new InvalidSpecialistStateException("Cannot resubmit specialist with status " + approvalStatus);
+		}
+	}
+	
+	public void suspend() {
+		if (this.approvalStatus == SpecialistStatus.APPROVED) {
+			this.approvalStatus = SpecialistStatus.SUSPENDED;
+		} else {
+			throw new InvalidSpecialistStateException("Cannot suspend specialist with status " + approvalStatus);
+		}
+	}
+	
+	public void reinstate() {
+		if (this.approvalStatus == SpecialistStatus.SUSPENDED) {
+			this.approvalStatus = SpecialistStatus.APPROVED;
+		} else {
+			throw new InvalidSpecialistStateException("Cannot reinstate specialist with status " + approvalStatus);
+		}
 	}
 }

@@ -101,6 +101,61 @@ public class SpecialistServiceTest {
 	}
 
 	@Test
+	public void shouldApproveSpecialist() {
+		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.save(penSpec)).thenReturn(penSpec);
+		service.approveSpecialist(penSpec.getId());
+		
+		assertEquals(SpecialistStatus.APPROVED, penSpec.getApprovalStatus());
+		verify(repository).findById(penSpec.getId());
+		verify(repository).save(penSpec);
+	}
+
+	@Test
+	public void shouldRejectSpecialist() {
+		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.save(penSpec)).thenReturn(penSpec);
+		service.rejectSpecialist(penSpec.getId());
+		
+		assertEquals(SpecialistStatus.REJECTED, penSpec.getApprovalStatus());
+		verify(repository).findById(penSpec.getId());
+		verify(repository).save(penSpec);
+	}
+
+	@Test
+	public void shouldResubmitSpecialist() {
+		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.save(rejSpec)).thenReturn(rejSpec);
+		service.resubmitSpecialist(rejSpec.getId());
+		
+		assertEquals(SpecialistStatus.PENDING, rejSpec.getApprovalStatus());
+		verify(repository).findById(rejSpec.getId());
+		verify(repository).save(rejSpec);
+	}
+
+	@Test
+	public void shouldSuspendSpecialist() {
+		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.save(appSpec)).thenReturn(appSpec);
+		service.suspendSpecialist(appSpec.getId());
+		
+		assertEquals(SpecialistStatus.SUSPENDED, appSpec.getApprovalStatus());
+		verify(repository).findById(appSpec.getId());
+		verify(repository).save(appSpec);
+	}
+
+	@Test
+	public void shouldReinstateSpecialist() {
+		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.save(susSpec)).thenReturn(susSpec);
+		service.reinstateSpecialist(susSpec.getId());
+		
+		assertEquals(SpecialistStatus.APPROVED, susSpec.getApprovalStatus());
+		verify(repository).findById(susSpec.getId());
+		verify(repository).save(susSpec);
+	}
+
+	@Test
 	public void shouldRejectNonApprovedSpecialistWhenApprovedStatusRequired() {
 		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		SpecialistNotApprovedException exception = assertThrows(SpecialistNotApprovedException.class,
@@ -115,18 +170,13 @@ public class SpecialistServiceTest {
 
 		assertEquals("SPECIALIST_NOT_APPROVED", exception.code());
 		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
-		
+
 		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		exception = assertThrows(SpecialistNotApprovedException.class,
 				() -> service.getActiveSpecialist(rejSpec.getId()));
 
 		assertEquals("SPECIALIST_NOT_APPROVED", exception.code());
 		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
-	}
-
-	@Test
-	public void shouldNotSaveSpecialistWhenStatusTransitionIsInvalid() {
-
 	}
 
 	@Test

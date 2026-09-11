@@ -2,6 +2,7 @@ package com.psyweb.availability.domain;
 
 import java.time.LocalDateTime;
 
+import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.specialist.domain.Specialist;
 
 import jakarta.persistence.Column;
@@ -76,15 +77,38 @@ public class AvailabilitySlot {
 		return this.availabilityStatus;
 	}
 	
-	public void markBlocked() {
-		this.availabilityStatus = AvailabilityStatus.BLOCKED;
+	public void reserve() {
+		if (availabilityStatus != AvailabilityStatus.FREE) {
+			throw new InvalidAvailabilitySlotStateException("Cannot reserve slot with status " + availabilityStatus);
+		}
+		this.availabilityStatus = AvailabilityStatus.RESERVED;
 	}
 	
-	public void markFree() {
+	public void releaseReservation() {
+		if (availabilityStatus != AvailabilityStatus.RESERVED) {
+			throw new InvalidAvailabilitySlotStateException("Cannot release reservation from slot with status " + availabilityStatus);
+		}
 		this.availabilityStatus = AvailabilityStatus.FREE;
 	}
 	
-	public void markBooked() {
+	public void confirmBooking() {
+		if (availabilityStatus != AvailabilityStatus.RESERVED) {
+			throw new InvalidAvailabilitySlotStateException("Cannot confirm booking for slot with status " + availabilityStatus);
+		}
 		this.availabilityStatus = AvailabilityStatus.BOOKED;
+	}
+	
+	public void releaseBooking() {
+		if (availabilityStatus != AvailabilityStatus.BOOKED) {
+			throw new InvalidAvailabilitySlotStateException("Cannot release booking from slot with status " + availabilityStatus);
+		}
+		this.availabilityStatus = AvailabilityStatus.FREE;
+	}
+	
+	public void cancel() {
+		if (availabilityStatus == AvailabilityStatus.CANCELLED) {
+			throw new InvalidAvailabilitySlotStateException("Cannot cancel slot with status " + availabilityStatus);
+		}
+		this.availabilityStatus = AvailabilityStatus.CANCELLED;
 	}
 }

@@ -7,11 +7,13 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.SlotAlreadyReservedException;
 import com.psyweb.booking.repository.ReservationRepository;
+import com.psyweb.user.domain.User;
 import com.psyweb.user.service.UserService;
 
 import jakarta.transaction.Transactional;
@@ -44,13 +46,14 @@ public class ReservationService {
 		if (reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE) ) {
 			throw new SlotAlreadyReservedException("Slot is already reserved");
 		}
-		Reservation reservation = new Reservation(
-				userService.getActiveUser(clientId),
-				slotService.getFreeSlot(slotId),
-				LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
+		User user = userService.getActiveUser(clientId);
+		AvailabilitySlot slot = slotService.getFreeSlot(slotId);
+		Reservation reservation = new Reservation(user, slot, LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
 			
 		try {
-			return reservationRepository.saveAndFlush(reservation);
+			Reservation savedReservation = reservationRepository.saveAndFlush(reservation);
+		    slot.reserve();
+		    return savedReservation;
 		} catch (DataIntegrityViolationException e) {
 			if (isActiveReservationConstraintViolation(e)) {
 				throw new SlotAlreadyReservedException("Slot is already reserved", e);

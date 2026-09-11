@@ -61,12 +61,11 @@ public class BookingService {
 			throw new IllegalArgumentException("Reservation must have status 'ACTIVE'");
 		}
 		User client = userService.getActiveUser(clientId);
-		AvailabilitySlot slot = slotService.getFreeSlot(reservation.getSlotId());
+		AvailabilitySlot slot = slotService.confirmBooking(reservation.getSlotId());
 		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());
 		reservation.confirm();
 		LocalDateTime now = LocalDateTime.now(clock);
 		Booking booking = new Booking(client, specialist, slot, reservation, now);
-		slot.markBooked();
 		
 		return bookingRepository.save(booking);
 	}
@@ -79,7 +78,7 @@ public class BookingService {
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 		booking.cancel(LocalDateTime.now(clock));
-		slotService.releaseBookedSlot(booking.getSlotId());
+		slotService.releaseBooking(booking.getSlotId());
 	}
 	
 	public List<Booking> getClientBookings(Long clientId, BookingStatus status) {

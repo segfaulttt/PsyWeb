@@ -53,51 +53,39 @@ public class AvailabilitySlotService {
 		return slotRepository.save(newSlot);
 	}
 	
-	public AvailabilitySlot blockSlot(Long slotId) {
+	public AvailabilitySlot reserveSlot(Long slotId) {
 		if (slotId == null) {
 			throw new IllegalArgumentException("Slot ID cannot be null");
 		}
 		
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
-		
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.FREE) {
-			throw new IllegalArgumentException("Cannot block slot");
-		}
 
-		slot.markBlocked();
+		slot.reserve();
 		return slotRepository.save(slot);
 	}
 	
-	public AvailabilitySlot freeSlot(Long slotId) {
+	public AvailabilitySlot releaseReservation(Long slotId) {
 		if (slotId == null) {
 			throw new IllegalArgumentException("Slot ID cannot be null");
 		}
 		
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
-		
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.BLOCKED) {
-			throw new IllegalArgumentException("Cannot free slot");
-		}
 
-		slot.markFree();
+		slot.releaseReservation();
 		return slotRepository.save(slot);
 	}
 	
-	public AvailabilitySlot releaseBookedSlot(Long slotId) {
+	public AvailabilitySlot releaseBooking(Long slotId) {
 		if (slotId == null) {
 			throw new IllegalArgumentException("Slot ID cannot be null");
 		}
 		
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
-		
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.BOOKED) {
-			throw new IllegalArgumentException("Cannot free slot");
-		}
 
-		slot.markFree();
+		slot.releaseBooking();
 		return slotRepository.save(slot);
 	}
 	
@@ -115,5 +103,29 @@ public class AvailabilitySlotService {
 			throw new IllegalArgumentException("Slot must have status 'FREE'");
 		}
 		return slot;
+	}
+	
+	public AvailabilitySlot confirmBooking(Long slotId) {
+		if (slotId == null) {
+			throw new IllegalArgumentException("Slot ID cannot be null");
+		}
+		
+		AvailabilitySlot slot = slotRepository.findById(slotId)
+				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+
+		slot.confirmBooking();
+		return slotRepository.save(slot);
+	}
+	
+	public AvailabilitySlot cancelSlot(Long slotId) {
+		if (slotId == null) {
+			throw new IllegalArgumentException("Slot ID cannot be null");
+		}
+		
+		AvailabilitySlot slot = slotRepository.findById(slotId)
+				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
+
+		slot.cancel();
+		return slotRepository.save(slot);
 	}
 }

@@ -102,17 +102,20 @@ public class BookingServiceTest {
     void shouldConfirmReservation() {
     	Long reservationId = 100L;
     	Long clientId = 1L;
-    	
+    	slot.reserve();
     	when(reservationService.getReservation(reservationId))
     		.thenReturn(reservation);
     	when(userService.getActiveUser(clientId))
     		.thenReturn(client);
-    	when(slotService.getFreeSlot(reservation.getSlotId()))
-    		.thenReturn(slot);
     	when(specialistService.getEligibleSpecialist(slot.getSpecialistId()))
     		.thenReturn(specialist);
     	when(bookingRepository.save(any(Booking.class)))
     		.thenAnswer(invocation -> invocation.getArgument(0));
+    	when(slotService.confirmBooking(slot.getId()))
+    		.thenAnswer(invocation -> {
+    			slot.confirmBooking();
+    			return slot;
+    		});
     	
     	Booking result = bookingService.confirmReservation(reservationId, clientId);
     	
@@ -123,9 +126,9 @@ public class BookingServiceTest {
     	assertEquals(now, result.getCreatedAt());
     	
     	assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
-    	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
     	
     	verify(bookingRepository).save(any(Booking.class));
+    	verify(slotService).confirmBooking(slot.getId());
     }
 
     @Test
@@ -216,13 +219,15 @@ public class BookingServiceTest {
     void shouldCancelBooking() {
     	Long bookingId = 1L;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+    	slot.reserve();
+    	slot.confirmBooking();
 
     	Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
     	ReflectionTestUtils.setField(booking, "id", bookingId);
     	
     	when(bookingRepository.findById(bookingId))
     		.thenReturn(Optional.of(booking));
-    	when(slotService.releaseBookedSlot(slot.getId()))
+    	when(slotService.releaseBooking(slot.getId()))
     		.thenReturn(slot);
     	
     	bookingService.cancelBooking(bookingId);
@@ -230,7 +235,7 @@ public class BookingServiceTest {
     	assertEquals(BookingStatus.CANCELLED, booking.getStatus());
     	assertNotEquals(null, booking.getCancelledAt());
     	assertEquals(now, booking.getCancelledAt());
-    	verify(slotService).releaseBookedSlot(slot.getId());
+    	verify(slotService).releaseBooking(slot.getId());
     }
 
     @Test

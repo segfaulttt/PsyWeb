@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
+import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.exception.SpecialistNotEligibleException;
@@ -71,7 +72,7 @@ class AvailabilitySlotServiceTest {
     }
 
     @Test
-    void shouldCreateSlot() {
+    public void shouldCreateSlot() {
     	Specialist specialist = mock(Specialist.class);
 
     	when(specialist.getId())
@@ -101,7 +102,7 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    void shouldRejectInvalidTime() {
+    public void shouldRejectInvalidTime() {
     	LocalDateTime start = now.plusMinutes(10);
     	LocalDateTime end = now.plusMinutes(5);
 
@@ -112,7 +113,7 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    void shouldBlockFreeSlot() {    	
+    public void shouldReserveFreeSlot() {    	
     	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
     	
     	when(slotRepository.findById(SLOT_ID))
@@ -120,14 +121,14 @@ class AvailabilitySlotServiceTest {
     	when(slotRepository.save(any(AvailabilitySlot.class)))
         	.thenAnswer(invocation -> invocation.getArgument(0));
     	
-    	AvailabilitySlot result = slotService.blockSlot(SLOT_ID);
+    	AvailabilitySlot result = slotService.reserveSlot(SLOT_ID);
     	
     	assertEquals(AvailabilityStatus.RESERVED, result.getAvailabilityStatus());
     	verify(slotRepository).save(slot);
     }
 
     @Test
-    void shouldRejectBlockBookedSlot() {
+    public void shouldRejectReservationWhenSlotIsBooked() {
     	slot.reserve();
     	slot.confirmBooking();
     	
@@ -135,15 +136,15 @@ class AvailabilitySlotServiceTest {
     	
     	when(slotRepository.findById(SLOT_ID))
         	.thenReturn(Optional.of(slot));
-    	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> slotService.blockSlot(SLOT_ID));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.reserveSlot(SLOT_ID));
     	
-    	assertEquals("Cannot block slot", exception.getMessage());
+    	assertEquals("Cannot reserve slot with status BOOKED", exception.getMessage());
     	verify(slotRepository, never()).save(any());
     }
     
     @Test
-    void shouldFreeReservedSlot() {
+    public void shouldReleaseReservation() {
     	slot.reserve();
     	
     	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
@@ -160,20 +161,20 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    void shouldRejectFreeSlotWithInvalidStatus() {
+    public void shouldRejectReservationReleaseWhenSlotIsFree() {
     	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
     	when(slotRepository.findById(SLOT_ID))
     		.thenReturn(Optional.of(slot));
-    	Exception exception = assertThrows(IllegalArgumentException.class, 
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
     			() -> slotService.releaseReservation(SLOT_ID));
     	
-    	assertEquals("Cannot free slot", exception.getMessage());
+    	assertEquals("Cannot release reservation from slot with status FREE", exception.getMessage());
     	verify(slotRepository, never()).save(any());
     }
     
     @Test
-    void shouldFreeBookedSlot() {
+    public void shouldReleaseBooking() {
     	slot.reserve();
     	slot.confirmBooking();
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
@@ -183,7 +184,7 @@ class AvailabilitySlotServiceTest {
     	when(slotRepository.save(any(AvailabilitySlot.class)))
     		.thenAnswer(invocation -> invocation.getArgument(0));
     	
-    	AvailabilitySlot result = slotService.releaseBookedSlot(SLOT_ID);
+    	AvailabilitySlot result = slotService.releaseBooking(SLOT_ID);
     	
     	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
     	verify(slotRepository).findById(SLOT_ID);
@@ -191,7 +192,7 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    void shouldRejectSlotCreationWhenOverlapExists() {
+    public void shouldRejectSlotCreationWhenOverlapExists() {
     	LocalDateTime start = now.plusHours(1);
     	LocalDateTime end = now.plusHours(2);
 
@@ -316,5 +317,121 @@ class AvailabilitySlotServiceTest {
     	verify(specialistService).getEligibleSpecialist(specialist.getId());
     	verify(slotRepository, never()).save(any());
         verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
+    }
+    
+    @Test
+    public void shouldReleaseReservationFromReservedSlot() {
+    	slot.reserve();
+    	
+    	when(slotRepository.findById(SLOT_ID))
+    		.thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.releaseReservation(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldConfirmBookingForReservedSlot() {
+    	slot.reserve();
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.confirmBooking(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.BOOKED, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldReleaseBookingFromBookedSlot() {
+    	slot.reserve();
+    	slot.confirmBooking();
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.releaseBooking(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldCancelFreeSlot() {
+    	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldCancelReservedSlot() {
+    	slot.reserve();
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldCancelBookedSlot() {
+    	slot.reserve();
+    	slot.confirmBooking();
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	when(slotRepository.save(slot)).thenReturn(slot);
+    	
+    	AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
+    }
+    
+    @Test
+    public void shouldRejectRepeatedCancellation() {
+    	slot.cancel();
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.cancelSlot(SLOT_ID));
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	assertEquals("Cannot cancel slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(slot);
+    }
+    
+    @Test
+    public void shouldRejectBookingReleaseWhenSlotIsNotBooked() {
+    	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
+    	
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.releaseBooking(SLOT_ID));
+    	
+    	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+    	assertEquals("Cannot release booking from slot with status FREE", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(slot);
     }
 }

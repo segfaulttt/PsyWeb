@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
@@ -100,13 +101,14 @@ public class ReservationServiceTest {
 		
 		Reservation result = reservationService.createReservation(clientId, slotId);
 		
+		assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
 		verify(reservationRepository).saveAndFlush(any(Reservation.class));
 	}
 	
 	@Test
-	void shouldThrowExceptionWhenSlotIsAlreadyBooked() {
+	void shouldRejectReservationWhenSlotIsNotFree() {
 		Long clientId = 1L;
 		Long slotId = 10L;
 		

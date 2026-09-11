@@ -102,7 +102,7 @@ public class BookingServiceTest {
     void shouldConfirmReservation() {
     	Long reservationId = 100L;
     	Long clientId = 1L;
-    	
+    	slot.reserve();
     	when(reservationService.getReservation(reservationId))
     		.thenReturn(reservation);
     	when(userService.getActiveUser(clientId))

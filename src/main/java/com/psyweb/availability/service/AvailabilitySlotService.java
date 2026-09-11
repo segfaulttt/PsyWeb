@@ -65,11 +65,11 @@ public class AvailabilitySlotService {
 			throw new IllegalArgumentException("Cannot block slot");
 		}
 
-		slot.markBlocked();
+		slot.reserve();
 		return slotRepository.save(slot);
 	}
 	
-	public AvailabilitySlot freeSlot(Long slotId) {
+	public AvailabilitySlot releaseReservation(Long slotId) {
 		if (slotId == null) {
 			throw new IllegalArgumentException("Slot ID cannot be null");
 		}
@@ -77,11 +77,11 @@ public class AvailabilitySlotService {
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new IllegalArgumentException("Slot not found"));
 		
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.BLOCKED) {
+		if (slot.getAvailabilityStatus() != AvailabilityStatus.RESERVED) {
 			throw new IllegalArgumentException("Cannot free slot");
 		}
 
-		slot.markFree();
+		slot.releaseReservation();
 		return slotRepository.save(slot);
 	}
 	
@@ -97,7 +97,7 @@ public class AvailabilitySlotService {
 			throw new IllegalArgumentException("Cannot free slot");
 		}
 
-		slot.markFree();
+		slot.releaseBooking();
 		return slotRepository.save(slot);
 	}
 	

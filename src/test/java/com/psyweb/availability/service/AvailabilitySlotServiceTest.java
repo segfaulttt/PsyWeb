@@ -122,13 +122,14 @@ class AvailabilitySlotServiceTest {
     	
     	AvailabilitySlot result = slotService.blockSlot(SLOT_ID);
     	
-    	assertEquals(AvailabilityStatus.BLOCKED, result.getAvailabilityStatus());
+    	assertEquals(AvailabilityStatus.RESERVED, result.getAvailabilityStatus());
     	verify(slotRepository).save(slot);
     }
 
     @Test
     void shouldRejectBlockBookedSlot() {
-    	slot.markBooked();
+    	slot.reserve();
+    	slot.confirmBooking();
     	
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
     	
@@ -142,16 +143,17 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    void shouldFreeBlockedSlot() {
-    	slot.markBlocked();
-    	assertEquals(AvailabilityStatus.BLOCKED, slot.getAvailabilityStatus());
+    void shouldFreeReservedSlot() {
+    	slot.reserve();
+    	
+    	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
     	
     	when(slotRepository.findById(SLOT_ID))
     		.thenReturn(Optional.of(slot));
     	when(slotRepository.save(any(AvailabilitySlot.class)))
         	.thenAnswer(invocation -> invocation.getArgument(0));
     	
-    	AvailabilitySlot result = slotService.freeSlot(SLOT_ID);
+    	AvailabilitySlot result = slotService.releaseReservation(SLOT_ID);
     	
     	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
     	verify(slotRepository).save(slot);
@@ -164,7 +166,7 @@ class AvailabilitySlotServiceTest {
     	when(slotRepository.findById(SLOT_ID))
     		.thenReturn(Optional.of(slot));
     	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> slotService.freeSlot(SLOT_ID));
+    			() -> slotService.releaseReservation(SLOT_ID));
     	
     	assertEquals("Cannot free slot", exception.getMessage());
     	verify(slotRepository, never()).save(any());
@@ -172,15 +174,20 @@ class AvailabilitySlotServiceTest {
     
     @Test
     void shouldFreeBookedSlot() {
-    	slot.markBooked();
+    	slot.reserve();
+    	slot.confirmBooking();
     	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
     	
     	when(slotRepository.findById(SLOT_ID))
     		.thenReturn(Optional.of(slot));
-    	Exception exception = assertThrows(IllegalArgumentException.class, 
-    			() -> slotService.freeSlot(SLOT_ID));
-    	assertEquals("Cannot free slot", exception.getMessage());
-    	verify(slotRepository, never()).save(any());
+    	when(slotRepository.save(any(AvailabilitySlot.class)))
+    		.thenAnswer(invocation -> invocation.getArgument(0));
+    	
+    	AvailabilitySlot result = slotService.releaseBookedSlot(SLOT_ID);
+    	
+    	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository).save(slot);
     }
     
     @Test

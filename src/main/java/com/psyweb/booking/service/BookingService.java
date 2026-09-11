@@ -66,7 +66,7 @@ public class BookingService {
 		reservation.confirm();
 		LocalDateTime now = LocalDateTime.now(clock);
 		Booking booking = new Booking(client, specialist, slot, reservation, now);
-		slot.markBooked();
+		slot.confirmBooking();
 		
 		return bookingRepository.save(booking);
 	}

@@ -156,7 +156,7 @@ public class SpecialistServiceTest {
 	}
 
 	@Test
-	public void shouldRejectNonApprovedSpecialistWhenApprovedStatusRequared() {
+	public void shouldRejectIneligibleSpecialistForInvalidApprovalStatus() {
 		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		SpecialistNotEligibleException exception = assertThrows(SpecialistNotEligibleException.class,
 				() -> service.getEligibleSpecialist(penSpec.getId()));

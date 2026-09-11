@@ -32,6 +32,7 @@ public class SpecialistService {
 		return specialist;
 	}
 	
+	@Transactional
 	public Specialist getEligibleSpecialist(Long id) {
 		Specialist specialist = getSpecialist(id);
 		if (!specialist.isEligible()) {

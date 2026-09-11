@@ -328,4 +328,22 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.APPROVED, appSpec.getApprovalStatus());
 		verify(repository, never()).save(appSpec);
 	}
+	
+	@Test
+	public void shouldRejectApprovedSpecialistWhenUserIsBlocked() {
+		User blockedUser = new User("blocked@example.ru", "password", UserRole.SPECIALIST, UserStatus.BLOCKED);
+		Specialist blockedSpecialist = new Specialist(blockedUser, "John", "Smith", Duration.ZERO, Duration.ZERO);
+		
+		ReflectionTestUtils.setField(blockedSpecialist, "id", 5L);
+	    blockedSpecialist.approve();
+
+	    when(repository.findById(blockedSpecialist.getId()))
+	        .thenReturn(Optional.of(blockedSpecialist));
+
+	    SpecialistNotEligibleException exception = assertThrows(SpecialistNotEligibleException.class,
+	        () -> service.getEligibleSpecialist(blockedSpecialist.getId()));
+
+	    assertEquals("SPECIALIST_NOT_ELIGIBLE", exception.code());
+	    assertEquals("Specialist is not eligible for professional operations", exception.getMessage());
+	}
 }

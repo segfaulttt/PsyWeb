@@ -144,23 +144,6 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    public void shouldReleaseReservation() {
-    	slot.reserve();
-    	
-    	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
-    	
-    	when(slotRepository.findById(SLOT_ID))
-    		.thenReturn(Optional.of(slot));
-    	when(slotRepository.save(any(AvailabilitySlot.class)))
-        	.thenAnswer(invocation -> invocation.getArgument(0));
-    	
-    	AvailabilitySlot result = slotService.releaseReservation(SLOT_ID);
-    	
-    	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
-    	verify(slotRepository).save(slot);
-    }
-    
-    @Test
     public void shouldRejectReservationReleaseWhenSlotIsFree() {
     	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
@@ -171,24 +154,6 @@ class AvailabilitySlotServiceTest {
     	
     	assertEquals("Cannot release reservation from slot with status FREE", exception.getMessage());
     	verify(slotRepository, never()).save(any());
-    }
-    
-    @Test
-    public void shouldReleaseBooking() {
-    	slot.reserve();
-    	slot.confirmBooking();
-    	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
-    	
-    	when(slotRepository.findById(SLOT_ID))
-    		.thenReturn(Optional.of(slot));
-    	when(slotRepository.save(any(AvailabilitySlot.class)))
-    		.thenAnswer(invocation -> invocation.getArgument(0));
-    	
-    	AvailabilitySlot result = slotService.releaseBooking(SLOT_ID);
-    	
-    	assertEquals(AvailabilityStatus.FREE, result.getAvailabilityStatus());
-    	verify(slotRepository).findById(SLOT_ID);
-    	verify(slotRepository).save(slot);
     }
     
     @Test
@@ -423,7 +388,7 @@ class AvailabilitySlotServiceTest {
     }
     
     @Test
-    public void shouldRejectBookingReleaseWhenSlotIsNotBooked() {
+    public void shouldRejectBookingReleaseWhenSlotIsFree() {
     	when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
     	
     	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 

@@ -105,20 +105,6 @@ public class AvailabilitySlotService {
 		return slot;
 	}
 	
-	public AvailabilitySlot getReservedSlot(Long id) {
-		if (id == null) {
-			throw new IllegalArgumentException("Invalid id");
-		}
-		
-		AvailabilitySlot slot = slotRepository.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Reserved slot not found"));
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.RESERVED) {
-			throw new IllegalArgumentException("Slot must have status 'RESERVED'");
-		}
-		
-		return slot;
-	}
-	
 	public AvailabilitySlot confirmBooking(Long slotId) {
 		if (slotId == null) {
 			throw new IllegalArgumentException("Slot ID cannot be null");

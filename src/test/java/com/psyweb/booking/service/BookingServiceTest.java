@@ -20,7 +20,6 @@ import static org.mockito.Mockito.*;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
-import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
@@ -61,9 +60,6 @@ public class BookingServiceTest {
     
     @Mock
     SpecialistService specialistService;
-    
-    @Mock
-    AvailabilitySlotRepository slotRepository;
     
     @BeforeEach
     void setUp() {

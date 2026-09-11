@@ -7,6 +7,7 @@ import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.exception.InvalidSpecialistStateException;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
+import com.psyweb.user.domain.UserStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -181,5 +182,12 @@ public class Specialist {
 		} else {
 			throw new InvalidSpecialistStateException("Cannot reinstate specialist with status " + approvalStatus);
 		}
+	}
+	
+	public boolean isEligible() {
+		if (user.getStatus() != UserStatus.ACTIVE || user.getRole() != UserRole.SPECIALIST || approvalStatus != SpecialistStatus.APPROVED) {
+			return false;
+		}
+		return true;
 	}
 }

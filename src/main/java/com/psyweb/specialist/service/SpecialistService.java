@@ -3,9 +3,8 @@ package com.psyweb.specialist.service;
 import org.springframework.stereotype.Service;
 
 import com.psyweb.specialist.domain.Specialist;
-import com.psyweb.specialist.domain.SpecialistStatus;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
-import com.psyweb.specialist.exception.SpecialistNotApprovedException;
+import com.psyweb.specialist.exception.SpecialistNotEligibleException;
 import com.psyweb.specialist.exception.SpecialistNotFoundException;
 import com.psyweb.specialist.repository.SpecialistRepository;
 
@@ -33,10 +32,10 @@ public class SpecialistService {
 		return specialist;
 	}
 	
-	public Specialist getActiveSpecialist(Long id) {
+	public Specialist getEligibleSpecialist(Long id) {
 		Specialist specialist = getSpecialist(id);
-		if (specialist.getApprovalStatus() != SpecialistStatus.APPROVED) {
-			throw new SpecialistNotApprovedException("Specialist must have status 'APPROVED'");
+		if (!specialist.isEligible()) {
+			throw new SpecialistNotEligibleException("Specialist is not eligible for professional operations");
 		}
 		return specialist;
 	}

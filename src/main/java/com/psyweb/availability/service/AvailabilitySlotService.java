@@ -42,7 +42,7 @@ public class AvailabilitySlotService {
 			throw new IllegalArgumentException("Start must be before end");
 		}
 		
-		Specialist specialist = specialistService.getActiveSpecialist(specialistId);
+		Specialist specialist = specialistService.getEligibleSpecialist(specialistId);
 		
 		if (slotRepository.existsOverlappingSlot(specialistId, startTime, endTime)) {
 			throw new IllegalArgumentException("Overlap");

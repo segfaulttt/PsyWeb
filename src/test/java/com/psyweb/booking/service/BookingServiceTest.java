@@ -109,7 +109,7 @@ public class BookingServiceTest {
     		.thenReturn(client);
     	when(slotService.getFreeSlot(reservation.getSlotId()))
     		.thenReturn(slot);
-    	when(specialistService.getActiveSpecialist(slot.getSpecialistId()))
+    	when(specialistService.getEligibleSpecialist(slot.getSpecialistId()))
     		.thenReturn(specialist);
     	when(bookingRepository.save(any(Booking.class)))
     		.thenAnswer(invocation -> invocation.getArgument(0));

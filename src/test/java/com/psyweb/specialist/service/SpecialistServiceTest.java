@@ -18,7 +18,7 @@ import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.domain.SpecialistStatus;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.exception.InvalidSpecialistStateException;
-import com.psyweb.specialist.exception.SpecialistNotApprovedException;
+import com.psyweb.specialist.exception.SpecialistNotEligibleException;
 import com.psyweb.specialist.exception.SpecialistNotFoundException;
 import com.psyweb.specialist.repository.SpecialistRepository;
 import com.psyweb.user.domain.User;
@@ -92,10 +92,10 @@ public class SpecialistServiceTest {
 	}
 
 	@Test
-	public void shouldReturnApprovedSpecialistWhenApprovedStatusRequired() {
+	public void shouldReturnEligibleSpecialist() {
 		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 
-		Specialist result = service.getActiveSpecialist(appSpec.getId());
+		Specialist result = service.getEligibleSpecialist(appSpec.getId());
 
 		assertEquals(appSpec, result);
 	}
@@ -156,27 +156,27 @@ public class SpecialistServiceTest {
 	}
 
 	@Test
-	public void shouldRejectNonApprovedSpecialistWhenApprovedStatusRequired() {
+	public void shouldRejectNonApprovedSpecialistWhenApprovedStatusRequared() {
 		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
-		SpecialistNotApprovedException exception = assertThrows(SpecialistNotApprovedException.class,
-				() -> service.getActiveSpecialist(penSpec.getId()));
+		SpecialistNotEligibleException exception = assertThrows(SpecialistNotEligibleException.class,
+				() -> service.getEligibleSpecialist(penSpec.getId()));
 
-		assertEquals("SPECIALIST_NOT_APPROVED", exception.code());
-		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
+		assertEquals("SPECIALIST_NOT_ELIGIBLE", exception.code());
+		assertEquals("Specialist is not eligible for professional operations", exception.getMessage());
 
 		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
-		exception = assertThrows(SpecialistNotApprovedException.class,
-				() -> service.getActiveSpecialist(susSpec.getId()));
+		exception = assertThrows(SpecialistNotEligibleException.class,
+				() -> service.getEligibleSpecialist(susSpec.getId()));
 
-		assertEquals("SPECIALIST_NOT_APPROVED", exception.code());
-		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
+		assertEquals("SPECIALIST_NOT_ELIGIBLE", exception.code());
+		assertEquals("Specialist is not eligible for professional operations", exception.getMessage());
 
 		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
-		exception = assertThrows(SpecialistNotApprovedException.class,
-				() -> service.getActiveSpecialist(rejSpec.getId()));
+		exception = assertThrows(SpecialistNotEligibleException.class,
+				() -> service.getEligibleSpecialist(rejSpec.getId()));
 
-		assertEquals("SPECIALIST_NOT_APPROVED", exception.code());
-		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
+		assertEquals("SPECIALIST_NOT_ELIGIBLE", exception.code());
+		assertEquals("Specialist is not eligible for professional operations", exception.getMessage());
 	}
 
 	@Test

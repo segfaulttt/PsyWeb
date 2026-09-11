@@ -62,7 +62,7 @@ public class BookingService {
 		}
 		User client = userService.getActiveUser(clientId);
 		AvailabilitySlot slot = slotService.getFreeSlot(reservation.getSlotId());
-		Specialist specialist = specialistService.getActiveSpecialist(slot.getSpecialistId());
+		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());
 		reservation.confirm();
 		LocalDateTime now = LocalDateTime.now(clock);
 		Booking booking = new Booking(client, specialist, slot, reservation, now);

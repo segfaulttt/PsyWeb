@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
+import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
@@ -89,6 +90,7 @@ public class ReservationServiceTest {
 	void shouldCreateReservationSuccessfullyWhenSlotIsFree() {
 		Long clientId = 1L;
 		Long slotId = 10L;
+		slot.reserve();
 		
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE))
 			.thenReturn(false);
@@ -96,7 +98,7 @@ public class ReservationServiceTest {
 			.thenAnswer(invocation -> invocation.getArgument(0));
 		when(userService.getActiveUser(clientId))
 			.thenReturn(client);
-		when(slotService.getFreeSlot(slotId))
+		when(slotService.reserveSlot(slotId))
 			.thenReturn(slot);
 		
 		Reservation result = reservationService.createReservation(clientId, slotId);
@@ -105,25 +107,30 @@ public class ReservationServiceTest {
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
 		verify(reservationRepository).saveAndFlush(any(Reservation.class));
+		verify(slotService).reserveSlot(slotId);
 	}
 	
 	@Test
-	void shouldRejectReservationWhenSlotIsNotFree() {
+	void shouldNotCreateReservationWhenSlotReservationFails() {
 		Long clientId = 1L;
 		Long slotId = 10L;
+		slot.cancel();
+		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 		
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE))
 			.thenReturn(false);
 		when(userService.getActiveUser(clientId))
 			.thenReturn(client);
-		when(slotService.getFreeSlot(slotId))
-			.thenThrow(new IllegalArgumentException("Slot must have status 'FREE'"));
+		when(slotService.reserveSlot(slotId))
+			.thenThrow(new InvalidAvailabilitySlotStateException("Cannot reserve slot with status CANCELLED"));
 		
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		
+		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
 				() -> reservationService.createReservation(clientId, slotId));
 		
-		assertEquals("Slot must have status 'FREE'", exception.getMessage());
+		assertEquals("Cannot reserve slot with status CANCELLED", exception.getMessage());
 		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
+		verify(slotService).reserveSlot(slotId);
 	}
 	
 	@Test
@@ -140,6 +147,7 @@ public class ReservationServiceTest {
 		assertEquals("SLOT_ALREADY_RESERVED", exception.code());
 		assertEquals("Slot is already reserved", exception.getMessage());
 		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
+		verifyNoInteractions(slotService);
 	}
 	
 	@Test

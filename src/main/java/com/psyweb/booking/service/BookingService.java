@@ -95,7 +95,7 @@ public class BookingService {
 		if (specialistId == null) {
 			throw new IllegalArgumentException("Incorrect id");
 		}
-		if (status ==  null) {
+		if (status == null) {
 			return bookingRepository.findBySpecialist_Id(specialistId);
 		}
 		

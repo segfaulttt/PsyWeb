@@ -47,13 +47,11 @@ public class ReservationService {
 			throw new SlotAlreadyReservedException("Slot is already reserved");
 		}
 		User user = userService.getActiveUser(clientId);
-		AvailabilitySlot slot = slotService.getFreeSlot(slotId);
+		AvailabilitySlot slot = slotService.reserveSlot(slotId);
 		Reservation reservation = new Reservation(user, slot, LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
 			
 		try {
-			Reservation savedReservation = reservationRepository.saveAndFlush(reservation);
-		    slot.reserve();
-		    return savedReservation;
+		    return reservationRepository.saveAndFlush(reservation);
 		} catch (DataIntegrityViolationException e) {
 			if (isActiveReservationConstraintViolation(e)) {
 				throw new SlotAlreadyReservedException("Slot is already reserved", e);

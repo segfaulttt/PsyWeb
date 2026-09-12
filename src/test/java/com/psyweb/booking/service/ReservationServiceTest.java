@@ -90,6 +90,7 @@ public class ReservationServiceTest {
 	void shouldCreateReservationSuccessfullyWhenSlotIsFree() {
 		Long clientId = 1L;
 		Long slotId = 10L;
+		slot.reserve();
 		
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE))
 			.thenReturn(false);
@@ -98,10 +99,7 @@ public class ReservationServiceTest {
 		when(userService.getActiveUser(clientId))
 			.thenReturn(client);
 		when(slotService.reserveSlot(slotId))
-			.thenAnswer(invocation -> {
-				slot.reserve();
-				return slot;
-			});
+			.thenReturn(slot);
 		
 		Reservation result = reservationService.createReservation(clientId, slotId);
 		
@@ -109,6 +107,7 @@ public class ReservationServiceTest {
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
 		verify(reservationRepository).saveAndFlush(any(Reservation.class));
+		verify(slotService).reserveSlot(slotId);
 	}
 	
 	@Test
@@ -131,6 +130,7 @@ public class ReservationServiceTest {
 		
 		assertEquals("Cannot reserve slot with status CANCELLED", exception.getMessage());
 		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
+		verify(slotService).reserveSlot(slotId);
 	}
 	
 	@Test
@@ -147,6 +147,7 @@ public class ReservationServiceTest {
 		assertEquals("SLOT_ALREADY_RESERVED", exception.code());
 		assertEquals("Slot is already reserved", exception.getMessage());
 		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
+		verifyNoInteractions(slotService);
 	}
 	
 	@Test

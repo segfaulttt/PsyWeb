@@ -2,7 +2,6 @@ package com.psyweb.booking.service;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -85,33 +84,21 @@ public class BookingService {
 		if (clientId == null) {
 			throw new IllegalArgumentException("Incorrect id");
 		}
-		List<Booking> bookings = bookingRepository.findByClientId(clientId);
 		if (status == null) {
-			return bookings;
+			return bookingRepository.findByClient_Id(clientId);
 		}
-		List <Booking> byStatus = new ArrayList<>();
-		for (Booking b : bookings) {
-			if (b.getStatus() == status) {
-				byStatus.add(b);
-			}
-		}
- 		return byStatus;
+
+ 		return bookingRepository.findByClient_IdAndStatus(clientId, status);
 	}
 	
 	public List<Booking> getSpecialistBookings(Long specialistId, BookingStatus status) {
 		if (specialistId == null) {
 			throw new IllegalArgumentException("Incorrect id");
 		}
-		List<Booking> bookings = bookingRepository.findBySpecialistId(specialistId);
 		if (status == null) {
-			return bookings;
+			return bookingRepository.findBySpecialist_Id(specialistId);
 		}
-		List <Booking> byStatus = new ArrayList<>();
-		for (Booking b : bookings) {
-			if (b.getStatus() == status) {
-				byStatus.add(b);
-			}
-		}
-		return byStatus;
+		
+		return bookingRepository.findBySpecialist_IdAndStatus(specialistId, status);
 	}
 }

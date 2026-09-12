@@ -28,7 +28,6 @@ public class Booking {
 	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "client_id", nullable = false)
-	// later: client entity
 	private User client;
 	
 	@ManyToOne(fetch = FetchType.LAZY)

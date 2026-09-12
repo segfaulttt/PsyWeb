@@ -289,26 +289,29 @@ public class BookingServiceTest {
 	
     @Test
     void shouldReturnAllClientBookingsWhenStatusIsNull() {
-    	Long clientId = 1L;
-    	BookingStatus status = null;
-    	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+        Long clientId = 1L;
+        BookingStatus status = null;
+        ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingF, "id", 1L);
-    	bookingF.complete();
-    	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(now.plusMinutes(1));
-    	
-    	when(bookingRepository.findByClientId(clientId))
-    		.thenReturn(List.of(bookingF, bookingS));
-    	
-    	List<Booking> result = bookingService.getClientBookings(clientId, status);
-    	
-    	assertEquals(2, result.size());
-        assertTrue(result.contains(bookingF));
-        assertTrue(result.contains(bookingS));
+        Booking completedBooking = new Booking(client, specialist, slot, reservation, now);
+        ReflectionTestUtils.setField(completedBooking, "id", 1L);
+        completedBooking.complete();
+
+        Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
+        ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
+        cancelledBooking.cancel(now.plusMinutes(1));
+
+        List<Booking> bookings = List.of(completedBooking, cancelledBooking);
+
+        when(bookingRepository.findByClient_Id(clientId))
+                .thenReturn(bookings);
+
+        List<Booking> result = bookingService.getClientBookings(clientId, status);
+
+        assertEquals(bookings, result);
+
+        verify(bookingRepository).findByClient_Id(clientId);
+        verify(bookingRepository, never()).findByClient_IdAndStatus(anyLong(), any());
     }
 
     @Test
@@ -317,22 +320,19 @@ public class BookingServiceTest {
     	BookingStatus status = BookingStatus.CANCELLED;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingF, "id", 1L);
-    	bookingF.complete();
+    	Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
+    	ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
+    	cancelledBooking.cancel(now.plusMinutes(1));
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(now.plusMinutes(1));
-    	
-    	when(bookingRepository.findByClientId(clientId))
-    		.thenReturn(List.of(bookingF, bookingS));
+    	when(bookingRepository.findByClient_IdAndStatus(clientId, status))
+    		.thenReturn(List.of(cancelledBooking));
     	
     	List<Booking> result = bookingService.getClientBookings(clientId, status);
     	
-    	assertEquals(1, result.size());
-        assertFalse(result.contains(bookingF));
-        assertTrue(result.contains(bookingS));
+    	assertEquals(List.of(cancelledBooking), result);
+    	
+        verify(bookingRepository).findByClient_IdAndStatus(clientId, status);
+        verify(bookingRepository, never()).findByClient_Id(clientId);
     }
 
     @Test
@@ -350,25 +350,28 @@ public class BookingServiceTest {
     @Test
     void shouldReturnAllSpecialistBookingsWhenStatusIsNull() {
     	Long specialistId = 1L;
-    	BookingStatus status = null;
-    	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+        BookingStatus status = null;
+        ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingF, "id", 1L);
-    	bookingF.complete();
-    	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(now.plusMinutes(1));
-    	
-    	when(bookingRepository.findBySpecialistId(specialistId))
-    		.thenReturn(List.of(bookingF, bookingS));
-    	
-    	List<Booking> result = bookingService.getSpecialistBookings(specialistId, status);
-    	
-    	assertEquals(2, result.size());
-        assertTrue(result.contains(bookingF));
-        assertTrue(result.contains(bookingS));
+        Booking completedBooking = new Booking(client, specialist, slot, reservation, now);
+        ReflectionTestUtils.setField(completedBooking, "id", 1L);
+        completedBooking.complete();
+
+        Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
+        ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
+        cancelledBooking.cancel(now.plusMinutes(1));
+
+        List<Booking> bookings = List.of(completedBooking, cancelledBooking);
+
+        when(bookingRepository.findBySpecialist_Id(specialistId))
+                .thenReturn(bookings);
+
+        List<Booking> result = bookingService.getSpecialistBookings(specialistId, status);
+
+        assertEquals(bookings, result);
+
+        verify(bookingRepository).findBySpecialist_Id(specialistId);
+        verify(bookingRepository, never()).findBySpecialist_IdAndStatus(specialistId, status);
     }
 
     @Test
@@ -377,22 +380,19 @@ public class BookingServiceTest {
     	BookingStatus status = BookingStatus.CANCELLED;
     	ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
-    	Booking bookingF = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingF, "id", 1L);
-    	bookingF.complete();
+    	Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
+    	ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
+    	cancelledBooking.cancel(now.plusMinutes(1));
     	
-    	Booking bookingS = new Booking(client, specialist, slot, reservation, now);
-    	ReflectionTestUtils.setField(bookingS, "id", 2L);
-    	bookingS.cancel(now.plusMinutes(1));
+    	when(bookingRepository.findBySpecialist_IdAndStatus(specialistId, status))
+    		.thenReturn(List.of(cancelledBooking));
     	
-    	when(bookingRepository.findBySpecialistId(specialistId))
-		.thenReturn(List.of(bookingF, bookingS));
-	
     	List<Booking> result = bookingService.getSpecialistBookings(specialistId, status);
     	
-    	assertEquals(1, result.size());
-        assertFalse(result.contains(bookingF));
-        assertTrue(result.contains(bookingS));
+    	assertEquals(List.of(cancelledBooking), result);
+    	
+        verify(bookingRepository).findBySpecialist_IdAndStatus(specialistId, status);
+        verify(bookingRepository, never()).findBySpecialist_Id(specialistId);
     }
 
     @Test

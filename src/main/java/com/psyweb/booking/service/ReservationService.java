@@ -75,8 +75,12 @@ public class ReservationService {
 
 	@Transactional
 	public void cancelReservation(Long reservationId) {
+		if (reservationId == null) {
+			throw new IllegalArgumentException("Reservation id cannot be null");
+		}
 		Reservation reservation = loadReservation(reservationId);
 		reservation.cancel();
+		slotService.releaseReservation(reservation.getSlotId());
 	}
 	
 	@Transactional
@@ -86,6 +90,8 @@ public class ReservationService {
 		}
 		Reservation reservation = loadReservation(reservationId);
 		reservation.expire();
+		slotService.releaseReservation(reservation.getSlotId());
+		
 	}
 	
 	@Transactional
@@ -96,6 +102,7 @@ public class ReservationService {
 		for (Reservation r : reservations) {
 			if (r.isExpired()) {
 				r.expire();
+				slotService.releaseReservation(r.getSlotId());
 			}
 		}
 	}

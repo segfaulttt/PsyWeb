@@ -399,4 +399,146 @@ class AvailabilitySlotServiceTest {
     	verify(slotRepository).findById(SLOT_ID);
     	verify(slotRepository, never()).save(slot);
     }
+    
+    @Test
+    public void shouldRejectReservationWhenSlotIsReserved() {
+    	slot.reserve();
+    	
+    	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.reserveSlot(SLOT_ID));
+    	
+    	assertEquals("Cannot reserve slot with status RESERVED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    public void shouldRejectReservationWhenSlotIsCancelled() {
+    	slot.cancel();
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.reserveSlot(SLOT_ID));
+    	
+    	assertEquals("Cannot reserve slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+
+    @Test
+    public void shouldRejectReservationReleaseWhenSlotIsBooked() {
+    	slot.reserve();
+    	slot.confirmBooking();
+    	
+    	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.releaseReservation(SLOT_ID));
+    	
+    	assertEquals("Cannot release reservation from slot with status BOOKED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    public void shouldRejectReservationReleaseWhenSlotIsCancelled() {
+    	slot.cancel();
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.releaseReservation(SLOT_ID));
+    	
+    	assertEquals("Cannot release reservation from slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+
+    @Test
+    public void shouldRejectBookingConfirmationWhenSlotIsFree() {
+    	assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.confirmBooking(SLOT_ID));
+    	
+    	assertEquals("Cannot confirm booking for slot with status FREE", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    public void shouldRejectBookingConfirmationWhenSlotIsBooked() {
+    	slot.reserve();
+    	slot.confirmBooking();
+    	
+    	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.confirmBooking(SLOT_ID));
+    	
+    	assertEquals("Cannot confirm booking for slot with status BOOKED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    public void shouldRejectBookingConfirmationWhenSlotIsCancelled() {
+    	slot.cancel();
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.confirmBooking(SLOT_ID));
+    	
+    	assertEquals("Cannot confirm booking for slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository, never()).save(any());
+    }
+
+    @Test
+    public void shouldRejectBookingReleaseWhenSlotIsReserved() {
+    	slot.reserve();
+    	
+    	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.releaseBooking(SLOT_ID));
+    	
+    	assertEquals("Cannot release booking from slot with status RESERVED", exception.getMessage());
+    	verify(slotRepository, never()).save(any());
+    }
+    
+    @Test
+    public void shouldRejectBookingReleaseWhenSlotIsCancelled() {
+    	slot.cancel();
+    	
+    	assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+    	
+    	when(slotRepository.findById(SLOT_ID))
+        	.thenReturn(Optional.of(slot));
+    	InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class, 
+    			() -> slotService.releaseBooking(SLOT_ID));
+    	
+    	assertEquals("Cannot release booking from slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
+    	verify(slotRepository, never()).save(any());
+    }
 }

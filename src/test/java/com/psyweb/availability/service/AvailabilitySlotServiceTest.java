@@ -508,6 +508,7 @@ class AvailabilitySlotServiceTest {
     			() -> slotService.confirmBooking(SLOT_ID));
     	
     	assertEquals("Cannot confirm booking for slot with status CANCELLED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
     	verify(slotRepository, never()).save(any());
     }
 
@@ -523,6 +524,7 @@ class AvailabilitySlotServiceTest {
     			() -> slotService.releaseBooking(SLOT_ID));
     	
     	assertEquals("Cannot release booking from slot with status RESERVED", exception.getMessage());
+    	verify(slotRepository).findById(SLOT_ID);
     	verify(slotRepository, never()).save(any());
     }
     

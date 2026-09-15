@@ -17,9 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import static org.mockito.Mockito.doReturn;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.availability.domain.AvailabilityStatus;
+import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
@@ -104,4 +108,123 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
        		executor.shutdownNow();
        	}
     }
+	
+	@Test
+	public void shouldCreateActiveReservationAndReserveSlot() {
+		User specialistUser = userRepository.saveAndFlush(
+		        new User("specialist-create@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+		        new Specialist(specialistUser, "Anna", "Create", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(
+		        new User("client-create@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = LocalDateTime.now().plusDays(1);
+
+		AvailabilitySlot slot = slotRepository.saveAndFlush(
+		        new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
+		
+		Reservation result = reservationService.createReservation(client.getId(), slot.getId());
+		
+		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId())
+		        .orElseThrow();
+		
+		assertEquals(ReservationStatus.ACTIVE, result.getStatus());
+		assertEquals(AvailabilityStatus.RESERVED, savedSlot.getAvailabilityStatus());
+	}
+	
+	@Test
+	public void shouldCancelReservationAndReleaseSlot() {
+		User specialistUser = userRepository.saveAndFlush(
+		        new User("specialist-cancel@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+		        new Specialist(specialistUser, "Anna", "Cancel", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(
+		        new User("client-cancel@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = LocalDateTime.now().plusDays(2);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = reservationRepository.saveAndFlush(
+		        new Reservation(client, slot, LocalDateTime.now().plusMinutes(5)));
+		
+		reservationService.cancelReservation(reservation.getId());
+		
+		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
+		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+		
+		assertEquals(ReservationStatus.CANCELLED, result.getStatus());
+		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
+	}
+	
+	@Test
+	public void shouldExpireReservationAndReleaseSlot() {
+		User specialistUser = userRepository.saveAndFlush(
+		        new User("specialist-expire@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+		        new Specialist(specialistUser, "Anna", "Expire", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(
+		        new User("client-expire@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = LocalDateTime.now().plusDays(3);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = new Reservation(client, slot, LocalDateTime.now().plusMinutes(5));
+
+		ReflectionTestUtils.setField(reservation, "expiresAt", LocalDateTime.now().minusMinutes(1));
+
+		reservationRepository.saveAndFlush(reservation);
+		
+		reservationService.expireReservation(reservation.getId());
+		
+		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
+		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+		
+		assertEquals(ReservationStatus.EXPIRED, result.getStatus());
+		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
+	}
+	
+	@Test
+	public void shouldRollbackReservationCancellationWhenSlotReleaseFails() {
+		User specialistUser = userRepository.saveAndFlush(
+		        new User("specialist-rollback@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+		        new Specialist(specialistUser, "Anna", "Rollback", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(
+		        new User("client-rollback@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = LocalDateTime.now().plusDays(4);
+
+		AvailabilitySlot slot = slotRepository.saveAndFlush(
+		        new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
+
+		Reservation reservation = reservationRepository.saveAndFlush(
+		        new Reservation(client, slot, LocalDateTime.now().plusMinutes(5)));
+		
+		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
+				() -> reservationService.cancelReservation(reservation.getId()));
+		
+		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
+		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+		
+		assertEquals("Cannot release reservation from slot with status FREE", exception.getMessage());
+		assertEquals(ReservationStatus.ACTIVE, result.getStatus());
+		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
+		
+	}
 }

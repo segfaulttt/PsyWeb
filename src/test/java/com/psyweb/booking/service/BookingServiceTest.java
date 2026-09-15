@@ -99,10 +99,14 @@ public class BookingServiceTest {
     }
     
     @Test
-    void shouldConfirmReservation() {
+    void shouldConfirmActiveReservationAndBookReservedSlot() {
     	Long reservationId = 100L;
     	Long clientId = 1L;
     	slot.reserve();
+    	
+    	assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
+    	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
+    	
     	when(reservationService.getReservation(reservationId))
     		.thenReturn(reservation);
     	when(userService.getActiveUser(clientId))
@@ -126,6 +130,8 @@ public class BookingServiceTest {
     	assertEquals(now, result.getCreatedAt());
     	
     	assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
+    	assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+    	assertEquals(BookingStatus.CONFIRMED, result.getStatus());
     	
     	verify(bookingRepository).save(any(Booking.class));
     	verify(slotService).confirmBooking(slot.getId());

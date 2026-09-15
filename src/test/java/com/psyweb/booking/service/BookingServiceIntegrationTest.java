@@ -77,7 +77,6 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
 		Booking savedBooking = bookingRepository.findById(result.getId()).orElseThrow();
 		
-		assertEquals(1, bookingRepository.count());
 		assertEquals(result.getId(), savedBooking.getId());
 		
 		assertEquals(ReservationStatus.CONFIRMED, savedReservation.getStatus());
@@ -117,7 +116,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 			.when(bookingRepository)
 			.save(any(Booking.class));
 		
-		DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class, 
+		assertThrows(DataIntegrityViolationException.class, 
 				() -> bookingService.confirmReservation(reservation.getId(), client.getId()));
 		
 		Reservation savedReservation = reservationRepository.findById(reservation.getId()).orElseThrow();

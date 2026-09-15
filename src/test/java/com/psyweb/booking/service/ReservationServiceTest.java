@@ -37,6 +37,8 @@ public class ReservationServiceTest {
 	private AvailabilitySlot slot;
 	private LocalDateTime now;
 	private Reservation reservation;
+	private AvailabilitySlot firstSlot;
+	private AvailabilitySlot secondSlot;
 	
 	@Mock
 	ReservationRepository reservationRepository;
@@ -84,6 +86,12 @@ public class ReservationServiceTest {
 		ReflectionTestUtils.setField(client, "id", 1L);           
         ReflectionTestUtils.setField(slot, "id", 10L);
         ReflectionTestUtils.setField(reservation, "id", 100L);
+        
+        firstSlot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
+		secondSlot = new AvailabilitySlot(specialist, now.plusHours(3), now.plusHours(4));
+
+		ReflectionTestUtils.setField(firstSlot, "id", 20L);
+		ReflectionTestUtils.setField(secondSlot, "id", 30L);
 	}
 
 	@Test
@@ -152,41 +160,25 @@ public class ReservationServiceTest {
 	
 	@Test
 	void shouldExpireActiveReservationsWhenExpiresAtIsBeforeNow() {
-		Reservation first = new Reservation(
-				client,
-           	    slot,
-           	    now.plusMinutes(2)
-		);
-		Reservation second = new Reservation(
-				client,
-           	    slot,
-           	    now.plusMinutes(2)
-		);
-		ReflectionTestUtils.setField(first, "expiresAt", now.minusMinutes(10));
-		
-		
+		Reservation expiredReservation = new Reservation(client, slot, now.plusMinutes(2));
+
+		ReflectionTestUtils.setField(expiredReservation, "expiresAt", now.minusMinutes(10));
+
 		when(reservationRepository.findByStatus(ReservationStatus.ACTIVE))
-			.thenReturn(List.of(first, second));
-		 
+		        .thenReturn(List.of(expiredReservation));
+
 		reservationService.expireExpiredReservations();
+
+		assertEquals(ReservationStatus.EXPIRED, expiredReservation.getStatus());
+		verify(slotService).releaseReservation(expiredReservation.getSlotId());
 		
-		assertEquals(ReservationStatus.EXPIRED, first.getStatus());
 	}
 	
 	@Test
 	void shouldKeepReservationActiveWhenExpiresAtIsAfterNow() {
-		Reservation first = new Reservation(
-				client,
-           	    slot,
-           	    now.plusMinutes(2)
-		);
-		Reservation second = new Reservation(
-				client,
-           	    slot,
-           	    now.plusMinutes(2)
-		);
+		Reservation first = new Reservation(client, firstSlot, now.plusMinutes(2));
+		Reservation second = new Reservation(client, secondSlot, now.plusMinutes(2));
 		ReflectionTestUtils.setField(first, "expiresAt", now.minusMinutes(10));
-		
 		
 		when(reservationRepository.findByStatus(ReservationStatus.ACTIVE))
 			.thenReturn(List.of(first, second));
@@ -194,6 +186,9 @@ public class ReservationServiceTest {
 		reservationService.expireExpiredReservations();
 		
 		assertEquals(ReservationStatus.ACTIVE, second.getStatus());
+		assertEquals(ReservationStatus.EXPIRED, first.getStatus());
+		verify(slotService).releaseReservation(first.getSlotId());
+		verify(slotService, never()).releaseReservation(second.getSlotId());
 	}
 	
 	@Test
@@ -206,6 +201,7 @@ public class ReservationServiceTest {
 		reservationService.cancelReservation(reservationId);
 		
 		assertEquals(ReservationStatus.CANCELLED, reservation.getStatus());
+		verify(slotService).releaseReservation(reservation.getSlotId());
 	}
 	
 	@Test
@@ -220,6 +216,7 @@ public class ReservationServiceTest {
 		
 		assertEquals("Cannot mark cancelled", exception.getMessage());
 		assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
+		verify(slotService, never()).releaseReservation(anyLong());
 	}
 	
 	@Test
@@ -233,6 +230,7 @@ public class ReservationServiceTest {
 		reservationService.expireReservation(reservationId);
 		
 		assertEquals(ReservationStatus.EXPIRED, reservation.getStatus());
+		verify(slotService).releaseReservation(reservation.getSlotId());
 	}
 	
 	@Test
@@ -244,6 +242,7 @@ public class ReservationServiceTest {
 		
 		assertEquals("Reservation id cannot be null", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
+		verifyNoInteractions(slotService);
 	}
 	
 	@Test
@@ -280,5 +279,31 @@ public class ReservationServiceTest {
 				() -> reservationService.getActiveReservationById(reservationId));
 		
 		assertEquals("Incorrect Id", exception.getMessage());
+	}
+	
+	@Test
+	public void shouldNotReleaseSlotWhenReservationExpirationFails() {
+		Reservation first = new Reservation(client, firstSlot, now.plusMinutes(2));
+		ReflectionTestUtils.setField(first, "id", 111L);
+		
+		when(reservationRepository.findById(first.getId()))
+			.thenReturn(Optional.of(first));
+		
+		Exception exception = assertThrows(IllegalArgumentException.class,
+				() -> reservationService.expireReservation(first.getId()));
+		
+		assertEquals("Cannot mark expired", exception.getMessage());
+		assertEquals(ReservationStatus.ACTIVE, first.getStatus());
+		verify(slotService, never()).releaseReservation(any());
+	}
+	
+	@Test
+	public void shouldThrowExceptionWhenCancelReservationIdIsNull() {
+		Exception exception = assertThrows(IllegalArgumentException.class,
+				() -> reservationService.cancelReservation(null));
+		
+		assertEquals("Reservation id cannot be null", exception.getMessage());
+		verify(slotService, never()).releaseReservation(any());
+		verify(reservationRepository, never()).findById(any());
 	}
 }

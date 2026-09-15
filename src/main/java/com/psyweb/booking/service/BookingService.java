@@ -12,6 +12,7 @@ import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.repository.BookingRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.service.SpecialistService;
@@ -43,8 +44,8 @@ public class BookingService {
 		this.clock = clock;
 	}
 	
-	@Transactional
-	public Booking confirmReservation(Long reservationId, Long clientId) {
+	@Transactional(dontRollbackOn = ReservationExpiredException.class)
+	public Booking confirmReservation(Long reservationId, Long clientId) {  
 		if (reservationId == null || clientId == null) {
 			throw new IllegalArgumentException("Incorrect id");
 		}
@@ -53,8 +54,8 @@ public class BookingService {
 			throw new IllegalArgumentException("Reservation does not belong to this client");
 		}
 		if (reservation.isExpired()) {
-			reservation.expire();
-			throw new IllegalArgumentException("Reservation already expired");
+			reservationService.expireReservation(reservationId);
+			throw new ReservationExpiredException("Reservation already expired");
 		}
 		if (reservation.getStatus() != ReservationStatus.ACTIVE) {
 			throw new IllegalArgumentException("Reservation must have status 'ACTIVE'");

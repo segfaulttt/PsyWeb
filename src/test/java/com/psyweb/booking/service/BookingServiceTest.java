@@ -25,6 +25,7 @@ import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.repository.BookingRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.service.SpecialistService;
@@ -179,7 +180,7 @@ public class BookingServiceTest {
     }
 
     @Test
-    void shouldExpireReservationWhenExpired() {
+    void shouldExpireReservationAndRejectConfirmationWhenExpired() {
         Long reservationId = 100L;
         Long clientId = 1L;
         Reservation expired = mock(Reservation.class);
@@ -191,16 +192,14 @@ public class BookingServiceTest {
         when(expired.isExpired())
                 .thenReturn(true);
 
-        Exception exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> bookingService.confirmReservation(reservationId, clientId)
-        );
+        ReservationExpiredException exception = assertThrows(ReservationExpiredException.class,
+                () -> bookingService.confirmReservation(reservationId, clientId));
 
         assertEquals("Reservation already expired", exception.getMessage());
-
-        verify(expired).expire();
+        assertEquals("RESERVATION_EXPIRED", exception.code());
+        verify(reservationService).expireReservation(reservationId);
         verify(bookingRepository, never()).save(any());
-        verifyNoInteractions(userService, specialistService, slotService);
+        verifyNoInteractions(userService, specialistService);
     }
 
     @Test

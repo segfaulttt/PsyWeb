@@ -155,7 +155,6 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		
 		reservationRepository.saveAndFlush(reservation);
 
-		reservationRepository.saveAndFlush(reservation);
 		long bookingsBefore = bookingRepository.count();
 		
 		ReservationExpiredException exception = assertThrows(ReservationExpiredException.class,

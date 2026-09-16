@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
@@ -20,6 +21,7 @@ import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.repository.BookingRepository;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.specialist.domain.Specialist;
@@ -124,6 +126,49 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 		assertEquals(ReservationStatus.ACTIVE, savedReservation.getStatus());
 		assertEquals(AvailabilityStatus.RESERVED, savedSlot.getAvailabilityStatus());
+		assertEquals(bookingsBefore, bookingRepository.count());
+	}
+	
+	@Test
+	public void shouldPersistExpirationAndReleaseSlotWhenConfirmationIsRejected() {
+		LocalDateTime now = LocalDateTime.now();
+
+		User specialistUser = userRepository
+				.saveAndFlush(new User("specialist-expired-confirmation@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "Expired", Duration.ZERO, Duration.ZERO);
+		specialist.approve();
+		specialistRepository.saveAndFlush(specialist);
+
+		User client = userRepository.saveAndFlush(
+		        new User("client-expired-confirmation@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = now.plusDays(1);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		slot.reserve();
+		slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = new Reservation(client, slot, now.plusMinutes(10));
+
+		ReflectionTestUtils.setField(reservation, "expiresAt", now.minusMinutes(1));
+		
+		reservationRepository.saveAndFlush(reservation);
+
+		reservationRepository.saveAndFlush(reservation);
+		long bookingsBefore = bookingRepository.count();
+		
+		ReservationExpiredException exception = assertThrows(ReservationExpiredException.class,
+				() -> bookingService.confirmReservation(reservation.getId(), client.getId()));
+		
+		Reservation savedReservation = reservationRepository.findById(reservation.getId()).orElseThrow();
+		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+		
+		assertEquals("RESERVATION_EXPIRED", exception.code());
+		assertEquals("Reservation already expired", exception.getMessage());
+		
+		assertEquals(ReservationStatus.EXPIRED, savedReservation.getStatus());
+		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
 		assertEquals(bookingsBefore, bookingRepository.count());
 	}
 }

@@ -13,3 +13,9 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+psyweb:
+  reservation:
+    ttl: 10m
+    expiration-scan-interval: 1m
+    expiration-batch-size: 100

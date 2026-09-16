@@ -150,7 +150,7 @@ public class ReservationServiceTest {
 
 		ReflectionTestUtils.setField(expiredReservation, "expiresAt", now.minusMinutes(10));
 
-		when(reservationRepository.findByStatus(ReservationStatus.ACTIVE)).thenReturn(List.of(expiredReservation));
+		when(reservationRepository.findByStatusAndExpiresAtLessThanEqual(ReservationStatus.ACTIVE, now)).thenReturn(List.of(expiredReservation));
 
 		reservationService.expireExpiredReservations();
 
@@ -165,7 +165,7 @@ public class ReservationServiceTest {
 		Reservation second = new Reservation(client, secondSlot, now, now.plusMinutes(2));
 		ReflectionTestUtils.setField(first, "expiresAt", now.minusMinutes(10));
 
-		when(reservationRepository.findByStatus(ReservationStatus.ACTIVE)).thenReturn(List.of(first, second));
+		when(reservationRepository.findByStatusAndExpiresAtLessThanEqual(ReservationStatus.ACTIVE, now)).thenReturn(List.of(first, second));
 
 		reservationService.expireExpiredReservations();
 

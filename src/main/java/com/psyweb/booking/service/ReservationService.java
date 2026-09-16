@@ -107,15 +107,15 @@ public class ReservationService {
 	
 	@Transactional
 	public void expireExpiredReservations() {
-		List<Reservation> reservations = reservationRepository
-				.findByStatus(ReservationStatus.ACTIVE);
 		LocalDateTime now = LocalDateTime.now(clock);
+		List<Reservation> reservations = reservationRepository
+				.findByStatusAndExpiresAtLessThanEqual(ReservationStatus.ACTIVE, now);
 		
-		for (Reservation r : reservations) {
-			if (r.isExpired(now)) {
-				r.expire(now);
-				slotService.releaseReservation(r.getSlotId());
-			}
+		for (Reservation reservation : reservations) {
+		    if (reservation.isExpired(now)) {
+		        reservation.expire(now);
+		        slotService.releaseReservation(reservation.getSlotId());
+		    }
 		}
 	}
 	

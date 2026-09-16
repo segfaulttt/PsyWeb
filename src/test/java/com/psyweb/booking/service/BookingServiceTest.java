@@ -91,7 +91,7 @@ public class BookingServiceTest {
             
             slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
 
-            reservation = new Reservation(client, slot, now.plusMinutes(2));
+            reservation = new Reservation(client, slot, now, now.plusMinutes(2));
             
             ReflectionTestUtils.setField(client, "id", 1L);
             ReflectionTestUtils.setField(specialist, "id", 2L);            
@@ -189,7 +189,7 @@ public class BookingServiceTest {
                 .thenReturn(expired);
         when(expired.getClientId())
                 .thenReturn(clientId);
-        when(expired.isExpired())
+        when(expired.isExpired(now))
                 .thenReturn(true);
 
         ReservationExpiredException exception = assertThrows(ReservationExpiredException.class,

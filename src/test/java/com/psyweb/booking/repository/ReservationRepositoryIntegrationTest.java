@@ -9,6 +9,7 @@ import org.hibernate.exception.ConstraintViolationException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -27,6 +28,9 @@ import com.psyweb.user.repository.UserRepository;
 public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationTest {
 	
 	@Autowired
+	private Clock clock;
+	
+	@Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -40,6 +44,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		
     @Test
     void shouldRejectSecondActiveReservationForSameSlot() {
+    	LocalDateTime now = LocalDateTime.now(clock);
         User specialistUser = userRepository
         		.saveAndFlush(new User("specialist@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -54,11 +59,11 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
         AvailabilitySlot slot = slotRepository
         		.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
 
-        Reservation firstReservation = new Reservation(client, slot, LocalDateTime.now().plusMinutes(5));
+        Reservation firstReservation = new Reservation(client, slot, now, now.plusMinutes(5));
 
         reservationRepository.saveAndFlush(firstReservation);
 
-        Reservation secondReservation = new Reservation(client, slot, LocalDateTime.now().plusMinutes(5));
+        Reservation secondReservation = new Reservation(client, slot, now, now.plusMinutes(5));
 
         DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
                 () -> reservationRepository.saveAndFlush(secondReservation));

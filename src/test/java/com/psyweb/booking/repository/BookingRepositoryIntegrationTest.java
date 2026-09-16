@@ -2,6 +2,7 @@ package com.psyweb.booking.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest {
 	
 	@Autowired
+	private Clock clock;
+	
+	@Autowired
 	UserRepository userRepository;
 	
 	@Autowired
@@ -45,6 +49,7 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 	
 	@Test
 	public void shouldFindClientBookingsByStatus() {
+		LocalDateTime now = LocalDateTime.now(clock);
 		User targetClient = userRepository
 				.saveAndFlush(new User("targetclient@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 		User specialistUser = userRepository
@@ -57,8 +62,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot slot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
 			
-		Reservation reservation = new Reservation(targetClient, slot, LocalDateTime.now().plusMinutes(5));
-		reservation.confirm();
+		Reservation reservation = new Reservation(targetClient, slot, now, now.plusMinutes(5));
+		reservation.confirm(now);
 		reservationRepository.saveAndFlush(reservation);
 		
 		Booking targetBooking = new Booking(targetClient, specialist, slot, reservation, LocalDateTime.now().plusMinutes(5));
@@ -68,8 +73,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot differentStatusSlot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(specialist, startTime.plusHours(2), startTime.plusHours(3)));
 		
-		Reservation differentStatusReservation = new Reservation(targetClient, differentStatusSlot, LocalDateTime.now().plusMinutes(10));
-		differentStatusReservation.confirm();
+		Reservation differentStatusReservation = new Reservation(targetClient, differentStatusSlot, now, now.plusMinutes(10));
+		differentStatusReservation.confirm(now);
 		reservationRepository.saveAndFlush(differentStatusReservation);
 		
 		Booking differentStatusBooking = new Booking(targetClient, specialist, differentStatusSlot, differentStatusReservation, LocalDateTime.now().plusMinutes(10));
@@ -82,8 +87,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot otherClientSlot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(specialist, startTime.plusHours(4), startTime.plusHours(5)));
 		
-		Reservation otherClientReservation = new Reservation(otherClient, otherClientSlot, LocalDateTime.now().plusMinutes(10));
-		otherClientReservation.confirm();
+		Reservation otherClientReservation = new Reservation(otherClient, otherClientSlot, now, now.plusMinutes(10));
+		otherClientReservation.confirm(now);
 		reservationRepository.saveAndFlush(otherClientReservation);
 		
 		Booking otherClientBooking = new Booking(otherClient, specialist, otherClientSlot, otherClientReservation, LocalDateTime.now().plusMinutes(10));
@@ -101,6 +106,7 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 	
 	@Test
 	public void shouldFindSpecialistBookingsByStatus() {
+		LocalDateTime now = LocalDateTime.now(clock);
 		User targetClient = userRepository
 				.saveAndFlush(new User("targetclient@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 		User specialistUser = userRepository
@@ -113,8 +119,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot slot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(targetSpecialist, startTime, startTime.plusHours(1)));
 			
-		Reservation reservation = new Reservation(targetClient, slot, LocalDateTime.now().plusMinutes(5));
-		reservation.confirm();
+		Reservation reservation = new Reservation(targetClient, slot, now, now.plusMinutes(5));
+		reservation.confirm(now);
 		reservationRepository.saveAndFlush(reservation);
 		
 		Booking targetBooking = new Booking(targetClient, targetSpecialist, slot, reservation, LocalDateTime.now().plusMinutes(5));
@@ -124,8 +130,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot differentStatusSlot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(targetSpecialist, startTime.plusHours(2), startTime.plusHours(3)));
 		
-		Reservation differentStatusReservation = new Reservation(targetClient, differentStatusSlot, LocalDateTime.now().plusMinutes(10));
-		differentStatusReservation.confirm();
+		Reservation differentStatusReservation = new Reservation(targetClient, differentStatusSlot, now, now.plusMinutes(10));
+		differentStatusReservation.confirm(now);
 		reservationRepository.saveAndFlush(differentStatusReservation);
 		
 		Booking differentStatusBooking = new Booking(targetClient, targetSpecialist, differentStatusSlot, differentStatusReservation, LocalDateTime.now().plusMinutes(10));
@@ -141,8 +147,8 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		AvailabilitySlot otherSpecialistSlot = slotRepository
 				.saveAndFlush(new AvailabilitySlot(otherSpecialist, startTime.plusHours(4), startTime.plusHours(5)));
 		
-		Reservation otherSpecialistReservation = new Reservation(targetClient, otherSpecialistSlot, LocalDateTime.now().plusMinutes(10));
-		otherSpecialistReservation.confirm();
+		Reservation otherSpecialistReservation = new Reservation(targetClient, otherSpecialistSlot, now, now.plusMinutes(10));
+		otherSpecialistReservation.confirm(now);
 		reservationRepository.saveAndFlush(otherSpecialistReservation);
 		
 		Booking otherSpecialistBooking = new Booking(targetClient, otherSpecialist, otherSpecialistSlot, otherSpecialistReservation, LocalDateTime.now().plusMinutes(10));

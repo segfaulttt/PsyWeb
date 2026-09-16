@@ -44,21 +44,25 @@ public class Reservation {
 	
 	protected Reservation() {}
 	
-	public Reservation(User client, AvailabilitySlot slot, LocalDateTime expiresAt) {
+	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
 		if (client == null) {
-			throw new IllegalArgumentException("Incorrect client");
-		}
-		if (slot == null) {
-			throw new IllegalArgumentException("Slot cannot be null");
-		}
-		this.createdAt = LocalDateTime.now();
-		if (expiresAt == null || !expiresAt.isAfter(this.createdAt)) {
-			throw new IllegalArgumentException("Incorrect expires time");
-		}		
-		this.client = client;
-		this.slot = slot;
-		this.status = ReservationStatus.ACTIVE;
-		this.expiresAt = expiresAt;
+	        throw new IllegalArgumentException("Incorrect client");
+	    }
+	    if (slot == null) {
+	        throw new IllegalArgumentException("Slot cannot be null");
+	    }
+	    if (createdAt == null) {
+	        throw new IllegalArgumentException("Created time cannot be null");
+	    }
+	    if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
+	        throw new IllegalArgumentException("Incorrect expires time");
+	    }
+
+	    this.client = client;
+	    this.slot = slot;
+	    this.status = ReservationStatus.ACTIVE;
+	    this.createdAt = createdAt;
+	    this.expiresAt = expiresAt;
 	}
 	
 	public Long getId() {
@@ -85,18 +89,16 @@ public class Reservation {
 		return this.expiresAt;
 	}
 	
-	public void expire() {
-		if (this.status != ReservationStatus.ACTIVE || this.expiresAt.isAfter(LocalDateTime.now())) {
-			throw new IllegalArgumentException("Cannot mark expired");
-		}
-		this.status = ReservationStatus.EXPIRED;
+	public void expire(LocalDateTime now) {
+	    if (!isExpired(now)) {
+	        throw new IllegalArgumentException("Cannot mark expired");
+	    }
+
+	    status = ReservationStatus.EXPIRED;
 	}
 	
-	public boolean isExpired() {
-		if (this.status == ReservationStatus.ACTIVE && !this.expiresAt.isAfter(LocalDateTime.now())) {
-			return true;
-		}
-		return false;
+	public boolean isExpired(LocalDateTime now) {
+	    return status == ReservationStatus.ACTIVE && !expiresAt.isAfter(now);
 	}
 	
 	public void cancel() {
@@ -106,10 +108,11 @@ public class Reservation {
 		this.status = ReservationStatus.CANCELLED;
 	}
 	
-	public void confirm() {
-		if (this.status != ReservationStatus.ACTIVE || !this.expiresAt.isAfter(LocalDateTime.now())) {
-			throw new IllegalArgumentException("Cannot mark confirm");
-		}
-		this.status = ReservationStatus.CONFIRMED;
+	public void confirm(LocalDateTime now) {
+	    if (status != ReservationStatus.ACTIVE || !expiresAt.isAfter(now)) {
+	        throw new IllegalArgumentException("Cannot mark confirm");
+	    }
+
+	    status = ReservationStatus.CONFIRMED;
 	}
 }

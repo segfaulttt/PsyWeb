@@ -1,5 +1,6 @@
 package com.psyweb.booking.service;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.service.AvailabilitySlotService;
+import com.psyweb.booking.config.ReservationProperties;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.SlotAlreadyReservedException;
@@ -20,17 +22,24 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class ReservationService {
-	private static final long RESERVATION_TTL_MINUTES = 1;
 	private final ReservationRepository reservationRepository;
 	private final UserService userService;
 	private final AvailabilitySlotService slotService;
+	private final Clock clock;
+	private final ReservationProperties reservationProperties;
 	
-	public ReservationService(ReservationRepository reservationRepository, 
-			UserService userService, 
-			AvailabilitySlotService slotService) {
-		this.reservationRepository = reservationRepository;
-		this.userService = userService;
-		this.slotService = slotService;
+	public ReservationService(
+	        ReservationRepository reservationRepository,
+	        UserService userService,
+	        AvailabilitySlotService slotService,
+	        Clock clock,
+	        ReservationProperties reservationProperties
+	) {
+	    this.reservationRepository = reservationRepository;
+	    this.userService = userService;
+	    this.slotService = slotService;
+	    this.clock = clock;
+	    this.reservationProperties = reservationProperties;
 	}
 	
 	private Reservation loadReservation(Long reservationId) {
@@ -48,7 +57,8 @@ public class ReservationService {
 		}
 		User user = userService.getActiveUser(clientId);
 		AvailabilitySlot slot = slotService.reserveSlot(slotId);
-		Reservation reservation = new Reservation(user, slot, LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES));
+		LocalDateTime now = LocalDateTime.now(clock);
+		Reservation reservation = new Reservation(user, slot, now, now.plus(reservationProperties.ttl()));
 			
 		try {
 		    return reservationRepository.saveAndFlush(reservation);
@@ -89,7 +99,8 @@ public class ReservationService {
 			throw new IllegalArgumentException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservation(reservationId);
-		reservation.expire();
+		LocalDateTime now = LocalDateTime.now(clock);
+		reservation.expire(now);
 		slotService.releaseReservation(reservation.getSlotId());
 		
 	}
@@ -98,10 +109,11 @@ public class ReservationService {
 	public void expireExpiredReservations() {
 		List<Reservation> reservations = reservationRepository
 				.findByStatus(ReservationStatus.ACTIVE);
+		LocalDateTime now = LocalDateTime.now(clock);
 		
 		for (Reservation r : reservations) {
-			if (r.isExpired()) {
-				r.expire();
+			if (r.isExpired(now)) {
+				r.expire(now);
 				slotService.releaseReservation(r.getSlotId());
 			}
 		}

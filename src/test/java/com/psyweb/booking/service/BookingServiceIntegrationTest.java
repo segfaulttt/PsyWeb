@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -34,6 +35,9 @@ import com.psyweb.user.repository.UserRepository;
 
 public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
+	@Autowired
+	private Clock clock;
+	
     @Autowired
     private UserRepository userRepository;
 
@@ -54,6 +58,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 	
 	@Test
 	public void shouldConfirmReservationAndCreateBookingAtomically() {
+		LocalDateTime now = LocalDateTime.now(clock);
 		User specialistUser = userRepository.saveAndFlush(
 		        new User("specialist-confirm-success@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -71,7 +76,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		slotRepository.saveAndFlush(slot);
 
 		Reservation reservation = reservationRepository.saveAndFlush(
-		        new Reservation(client, slot, LocalDateTime.now().plusMinutes(10)));
+		        new Reservation(client, slot, now, now.plusMinutes(10)));
 		
 		Booking result = bookingService.confirmReservation(reservation.getId(), client.getId());
 		
@@ -93,6 +98,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 	
 	@Test
 	public void shouldRollbackConfirmationWhenBookingCreationFails() {
+		LocalDateTime now = LocalDateTime.now(clock);
 		User specialistUser = userRepository.saveAndFlush(
 		        new User("specialist-confirm-rollback@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -110,7 +116,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		slotRepository.saveAndFlush(slot);
 
 		Reservation reservation = reservationRepository.saveAndFlush(
-		        new Reservation(client, slot, LocalDateTime.now().plusMinutes(10)));
+		        new Reservation(client, slot, now, now.plusMinutes(10)));
 		
 		long bookingsBefore = bookingRepository.count();
 		
@@ -131,7 +137,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 	
 	@Test
 	public void shouldPersistExpirationAndReleaseSlotWhenConfirmationIsRejected() {
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = LocalDateTime.now(clock);
 
 		User specialistUser = userRepository
 				.saveAndFlush(new User("specialist-expired-confirmation@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -149,7 +155,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		slot.reserve();
 		slotRepository.saveAndFlush(slot);
 
-		Reservation reservation = new Reservation(client, slot, now.plusMinutes(10));
+		Reservation reservation = new Reservation(client, slot, now, now.plusMinutes(10));
 
 		ReflectionTestUtils.setField(reservation, "expiresAt", now.minusMinutes(1));
 		

@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
@@ -155,9 +154,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		slot.reserve();
 		slotRepository.saveAndFlush(slot);
 
-		Reservation reservation = new Reservation(client, slot, now, now.plusMinutes(10));
-
-		ReflectionTestUtils.setField(reservation, "expiresAt", now.minusMinutes(1));
+		Reservation reservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
 		
 		reservationRepository.saveAndFlush(reservation);
 

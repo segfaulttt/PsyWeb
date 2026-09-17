@@ -104,6 +104,8 @@ public class ReservationServiceTest {
 		assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
+		assertEquals(now, result.getCreatedAt());
+		assertEquals(now.plusMinutes(10), result.getExpiresAt());
 		verify(reservationRepository).saveAndFlush(any(Reservation.class));
 		verify(slotService).reserveSlot(slotId);
 	}

@@ -49,11 +49,14 @@ public class BookingService {
 		if (reservationId == null || clientId == null) {
 			throw new IllegalArgumentException("Incorrect id");
 		}
+		
 		Reservation reservation = reservationService.getReservation(reservationId);
+	    LocalDateTime now = LocalDateTime.now(clock);
+		
 		if (!reservation.getClientId().equals(clientId)) {
 			throw new IllegalArgumentException("Reservation does not belong to this client");
 		}
-		if (reservation.isExpired()) {
+		if (reservation.isExpired(now)) {
 			reservationService.expireReservation(reservationId);
 			throw new ReservationExpiredException("Reservation already expired");
 		}
@@ -63,8 +66,7 @@ public class BookingService {
 		User client = userService.getActiveUser(clientId);
 		AvailabilitySlot slot = slotService.confirmBooking(reservation.getSlotId());
 		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());
-		reservation.confirm();
-		LocalDateTime now = LocalDateTime.now(clock);
+		reservation.confirm(now);
 		Booking booking = new Booking(client, specialist, slot, reservation, now);
 		
 		return bookingRepository.save(booking);

@@ -165,50 +165,6 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 	}
 
 	@Test
-	public void shouldFindOnlyExpiredActiveReservationsForUpdate() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-
-		User specialistUser = userRepository.saveAndFlush(new User("specialist-scheduler-query@example.com",
-				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
-
-		Specialist specialist = specialistRepository
-				.saveAndFlush(new Specialist(specialistUser, "An", "Scheduler", Duration.ZERO, Duration.ZERO));
-
-		User client = userRepository.saveAndFlush(
-				new User("client-scheduler-query@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
-
-		LocalDateTime firstSlotStart = now.plusDays(1);
-
-		AvailabilitySlot expiredSlot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, firstSlotStart, firstSlotStart.plusHours(1)));
-
-		AvailabilitySlot boundarySlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(2), firstSlotStart.plusHours(3)));
-
-		AvailabilitySlot futureSlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(4), firstSlotStart.plusHours(5)));
-
-		AvailabilitySlot cancelledSlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(6), firstSlotStart.plusHours(7)));
-
-		Reservation expiredActiveReservation = new Reservation(client, expiredSlot, now.minusMinutes(20),
-				now.minusMinutes(10));
-
-		Reservation unexpiredActiveReservation = new Reservation(client, futureSlot, now, now.plusMinutes(10));
-
-		Reservation expiredConfirmedReservation = new Reservation(client, boundarySlot, now.minusMinutes(20),
-				now.minusMinutes(10));
-
-		Reservation expiredCancelledReservation = new Reservation(client, cancelledSlot, now.minusMinutes(20),
-				now.minusMinutes(10));
-
-		expiredCancelledReservation.cancel();
-
-		reservationRepository.saveAllAndFlush(List.of(expiredActiveReservation, unexpiredActiveReservation,
-				expiredConfirmedReservation, expiredCancelledReservation));
-	}
-
-	@Test
 	void shouldIncludeReservationWhenExpiresAtEqualsNow() {
 		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
 		TestContext context = createTestContext("boundary", now);

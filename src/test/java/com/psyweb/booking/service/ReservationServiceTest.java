@@ -297,4 +297,21 @@ public class ReservationServiceTest {
 		verify(slotService, never()).releaseReservation(any());
 		verify(reservationRepository, never()).findForUpdateById(any());
 	}
+
+	@Test
+	void shouldNotProcessReservationAgainOnRepeatedExpirationRun() {
+		Reservation expiredReservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
+
+		when(reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100))
+				.thenReturn(List.of(expiredReservation)).thenReturn(List.of());
+
+		reservationService.expireExpiredReservations();
+		reservationService.expireExpiredReservations();
+
+		assertEquals(ReservationStatus.EXPIRED, expiredReservation.getStatus());
+
+		verify(slotService, times(1)).releaseReservation(expiredReservation.getSlotId());
+
+		verify(reservationRepository, times(2)).findExpiredBatchForUpdateSkipLocked(now, 100);
+	}
 }

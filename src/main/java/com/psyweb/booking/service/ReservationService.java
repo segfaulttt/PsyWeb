@@ -47,6 +47,11 @@ public class ReservationService {
 				.orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 	}
 	
+	private Reservation loadReservationForUpdate(Long reservationId) {
+		return reservationRepository.findForUpdateById(reservationId)
+				.orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+	}
+	
 	@Transactional
 	public Reservation createReservation(Long clientId, Long slotId) {
 		if (clientId == null || slotId == null) {
@@ -88,7 +93,7 @@ public class ReservationService {
 		if (reservationId == null) {
 			throw new IllegalArgumentException("Reservation id cannot be null");
 		}
-		Reservation reservation = loadReservation(reservationId);
+		Reservation reservation = loadReservationForUpdate(reservationId);
 		reservation.cancel();
 		slotService.releaseReservation(reservation.getSlotId());
 	}
@@ -98,7 +103,7 @@ public class ReservationService {
 		if (reservationId == null) {
 			throw new IllegalArgumentException("Reservation id cannot be null");
 		}
-		Reservation reservation = loadReservation(reservationId);
+		Reservation reservation = loadReservationForUpdate(reservationId);
 		LocalDateTime now = LocalDateTime.now(clock);
 		reservation.expire(now);
 		slotService.releaseReservation(reservation.getSlotId());
@@ -109,7 +114,7 @@ public class ReservationService {
 	public void expireExpiredReservations() {
 		LocalDateTime now = LocalDateTime.now(clock);
 		List<Reservation> reservations = reservationRepository
-				.findByStatusAndExpiresAtLessThanEqual(ReservationStatus.ACTIVE, now);
+				.findExpiredBatchForUpdateSkipLocked(now, reservationProperties.expirationBatchSize());
 		
 		for (Reservation reservation : reservations) {
 		    if (reservation.isExpired(now)) {
@@ -132,6 +137,14 @@ public class ReservationService {
 			throw new IllegalArgumentException("Incorrect Id");
 		}
 		Reservation reservation = loadReservation(reservationId);
+		return reservation;
+	}
+	
+	public Reservation getReservationForUpdate(Long reservationId) {
+		if (reservationId == null) {
+			throw new IllegalArgumentException("Incorrect Id");
+		}
+		Reservation reservation = loadReservationForUpdate(reservationId);
 		return reservation;
 	}
 }

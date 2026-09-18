@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
-import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.repository.SpecialistRepository;
 import com.psyweb.testsupport.PostgreSQLIntegrationTest;
@@ -45,6 +44,34 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Autowired
 	private ReservationRepository reservationRepository;
+
+	private TestContext createTestContext(String suffix, LocalDateTime now) {
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-" + suffix + "@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository
+				.saveAndFlush(new Specialist(specialistUser, "Ann", "Scheduler", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(
+				new User("client-" + suffix + "@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		return new TestContext(client, specialist, now.plusDays(1));
+	}
+
+	private Reservation persistActiveReservation(TestContext context, int slotNumber, LocalDateTime createdAt,
+			LocalDateTime expiresAt) {
+		LocalDateTime slotStart = context.slotBase().plusHours(slotNumber * 2L);
+
+		AvailabilitySlot slot = new AvailabilitySlot(context.specialist(), slotStart, slotStart.plusHours(1));
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+		return reservationRepository.saveAndFlush(new Reservation(context.client(), slot, createdAt, expiresAt));
+	}
+
+	private record TestContext(User client, Specialist specialist, LocalDateTime slotBase) {
+	}
 
 	@Test
 	void shouldRejectSecondActiveReservationForSameSlot() {
@@ -130,11 +157,63 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		reservationRepository.saveAllAndFlush(
 				List.of(expiredReservation, boundaryReservation, futureReservation, cancelledReservation));
 
-		List<Reservation> result = reservationRepository.findByStatusAndExpiresAtLessThanEqual(ReservationStatus.ACTIVE,
-				now);
+		List<Reservation> result = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100);
 
 		Set<Long> actualReservationIds = result.stream().map(Reservation::getId).collect(Collectors.toSet());
 
 		assertEquals(Set.of(expiredReservation.getId(), boundaryReservation.getId()), actualReservationIds);
 	}
+
+	@Test
+	void shouldIncludeReservationWhenExpiresAtEqualsNow() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		TestContext context = createTestContext("boundary", now);
+
+		Reservation boundaryReservation = persistActiveReservation(context, 1, now.minusMinutes(10), now);
+
+		List<Reservation> result = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100);
+
+		assertEquals(1, result.size());
+		assertEquals(boundaryReservation.getId(), result.getFirst().getId());
+	}
+
+	@Test
+	void shouldReturnExpiredReservationsOrderedByExpiresAtAndId() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		TestContext context = createTestContext("ordering", now);
+
+		Reservation newest = persistActiveReservation(context, 1, now.minusMinutes(30), now.minusMinutes(5));
+
+		Reservation oldest = persistActiveReservation(context, 2, now.minusMinutes(30), now.minusMinutes(20));
+
+		Reservation sameExpirationFirst = persistActiveReservation(context, 3, now.minusMinutes(30),
+				now.minusMinutes(10));
+
+		Reservation sameExpirationSecond = persistActiveReservation(context, 4, now.minusMinutes(30),
+				now.minusMinutes(10));
+
+		List<Long> resultIds = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100).stream()
+				.map(Reservation::getId).toList();
+
+		assertEquals(List.of(oldest.getId(), sameExpirationFirst.getId(), sameExpirationSecond.getId(), newest.getId()),
+				resultIds);
+	}
+
+	@Test
+	void shouldLimitExpiredReservationsToBatchSize() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		TestContext context = createTestContext("batch-limit", now);
+
+		Reservation first = persistActiveReservation(context, 1, now.minusMinutes(30), now.minusMinutes(20));
+
+		Reservation second = persistActiveReservation(context, 2, now.minusMinutes(30), now.minusMinutes(15));
+
+		persistActiveReservation(context, 3, now.minusMinutes(30), now.minusMinutes(10));
+
+		List<Reservation> result = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 2);
+
+		assertEquals(2, result.size());
+		assertEquals(List.of(first.getId(), second.getId()), result.stream().map(Reservation::getId).toList());
+	}
 }
+

@@ -50,7 +50,7 @@ public class BookingService {
 			throw new IllegalArgumentException("Incorrect id");
 		}
 		
-		Reservation reservation = reservationService.getReservation(reservationId);
+		Reservation reservation = reservationService.getReservationForUpdate(reservationId);
 	    LocalDateTime now = LocalDateTime.now(clock);
 		
 		if (!reservation.getClientId().equals(clientId)) {

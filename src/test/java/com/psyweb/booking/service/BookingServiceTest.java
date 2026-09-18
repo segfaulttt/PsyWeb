@@ -108,7 +108,7 @@ public class BookingServiceTest {
     	assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
     	assertEquals(AvailabilityStatus.RESERVED, slot.getAvailabilityStatus());
     	
-    	when(reservationService.getReservation(reservationId))
+    	when(reservationService.getReservationForUpdate(reservationId))
     		.thenReturn(reservation);
     	when(userService.getActiveUser(clientId))
     		.thenReturn(client);
@@ -167,7 +167,7 @@ public class BookingServiceTest {
     	Long reservationId = 100L;
     	Long clientId = 3L;
     	
-    	when(reservationService.getReservation(reservationId))
+    	when(reservationService.getReservationForUpdate(reservationId))
     		.thenReturn(reservation);
     	
     	Exception exception = assertThrows(IllegalArgumentException.class, 
@@ -185,7 +185,7 @@ public class BookingServiceTest {
         Long clientId = 1L;
         Reservation expired = mock(Reservation.class);
 
-        when(reservationService.getReservation(reservationId))
+        when(reservationService.getReservationForUpdate(reservationId))
                 .thenReturn(expired);
         when(expired.getClientId())
                 .thenReturn(clientId);
@@ -208,7 +208,7 @@ public class BookingServiceTest {
     	Long clientId = 1L;
     	reservation.cancel();
     	
-    	when(reservationService.getReservation(reservationId))
+    	when(reservationService.getReservationForUpdate(reservationId))
 			.thenReturn(reservation);
     	
     	Exception exception = assertThrows(IllegalArgumentException.class, 

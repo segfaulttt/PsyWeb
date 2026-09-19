@@ -12,11 +12,18 @@ import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.BookingNotFoundException;
+import com.psyweb.booking.exception.InvalidBookingDataException;
+import com.psyweb.booking.exception.InvalidReservationDataException;
+import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationExpiredException;
+import com.psyweb.booking.exception.ReservationOwnershipException;
 import com.psyweb.booking.repository.BookingRepository;
 import com.psyweb.specialist.domain.Specialist;
+import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.service.SpecialistService;
 import com.psyweb.user.domain.User;
+import com.psyweb.user.exception.InvalidUserDataException;
 import com.psyweb.user.service.UserService;
 
 import jakarta.transaction.Transactional;
@@ -46,22 +53,26 @@ public class BookingService {
 	
 	@Transactional(dontRollbackOn = ReservationExpiredException.class)
 	public Booking confirmReservation(Long reservationId, Long clientId) {  
-		if (reservationId == null || clientId == null) {
-			throw new IllegalArgumentException("Incorrect id");
+		if (reservationId == null) {
+			throw new InvalidReservationDataException("Incorrect reservation id");
+		}
+		
+		if (clientId == null) {
+			throw new InvalidUserDataException("Incorrect client id");
 		}
 		
 		Reservation reservation = reservationService.getReservationForUpdate(reservationId);
 	    LocalDateTime now = LocalDateTime.now(clock);
 		
 		if (!reservation.getClientId().equals(clientId)) {
-			throw new IllegalArgumentException("Reservation does not belong to this client");
+			throw new ReservationOwnershipException("Reservation does not belong to this client");
 		}
 		if (reservation.isExpired(now)) {
 			reservationService.expireReservation(reservationId);
 			throw new ReservationExpiredException("Reservation already expired");
 		}
 		if (reservation.getStatus() != ReservationStatus.ACTIVE) {
-			throw new IllegalArgumentException("Reservation must have status 'ACTIVE'");
+			throw new InvalidReservationStateException("Reservation must have status 'ACTIVE'");
 		}
 		User client = userService.getActiveUser(clientId);
 		AvailabilitySlot slot = slotService.confirmBooking(reservation.getSlotId());
@@ -75,17 +86,17 @@ public class BookingService {
 	@Transactional
 	public void cancelBooking(Long bookingId) {
 		if (bookingId == null) {
-			throw new IllegalArgumentException("Incorrect id");
+			throw new InvalidBookingDataException("Incorrect id");
 		}
 		Booking booking = bookingRepository.findById(bookingId)
-				.orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 		booking.cancel(LocalDateTime.now(clock));
 		slotService.releaseBooking(booking.getSlotId());
 	}
 	
 	public List<Booking> getClientBookings(Long clientId, BookingStatus status) {
 		if (clientId == null) {
-			throw new IllegalArgumentException("Incorrect id");
+			throw new InvalidUserDataException("Incorrect client id");
 		}
 		if (status == null) {
 			return bookingRepository.findByClient_Id(clientId);
@@ -96,7 +107,7 @@ public class BookingService {
 	
 	public List<Booking> getSpecialistBookings(Long specialistId, BookingStatus status) {
 		if (specialistId == null) {
-			throw new IllegalArgumentException("Incorrect id");
+			throw new InvalidSpecialistDataException("Incorrect specialist id");
 		}
 		if (status == null) {
 			return bookingRepository.findBySpecialist_Id(specialistId);

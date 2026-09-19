@@ -3,6 +3,8 @@ package com.psyweb.booking.domain;
 import java.time.LocalDateTime;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.booking.exception.InvalidBookingDataException;
+import com.psyweb.booking.exception.InvalidBookingStateException;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
 
@@ -56,19 +58,19 @@ public class Booking {
 	
 	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation, LocalDateTime createdAt) {
 		if (client == null) {
-			throw new IllegalArgumentException("Client cannot be blank");
+			throw new InvalidBookingDataException("Client cannot be blank");
 		}
 		if (specialist == null) {
-			throw new IllegalArgumentException("Specialist cannot be blank");
+			throw new InvalidBookingDataException("Specialist cannot be blank");
 		}
 		if (slot == null) {
-			throw new IllegalArgumentException("Slot cannot be blank");
+			throw new InvalidBookingDataException("Slot cannot be blank");
 		}
 		if (reservation == null || reservation.getStatus() != ReservationStatus.CONFIRMED) {
-			throw new IllegalArgumentException("Reservation cannot be blank");
+			throw new InvalidBookingDataException("Reservation cannot be blank");
 		}
 		if (createdAt == null) {
-			throw new IllegalArgumentException("Creation time cannot be blank");
+			throw new InvalidBookingDataException("Creation time cannot be blank");
 		}
 		this.createdAt = createdAt;
 		this.client = client;
@@ -112,10 +114,10 @@ public class Booking {
 	
 	public void cancel(LocalDateTime time) {
 		if (this.status != BookingStatus.CONFIRMED) {
-			throw new IllegalArgumentException("Cannot cancel booking");
+			throw new InvalidBookingStateException("Cannot cancel booking");
 		}
 		if (time == null || !time.isAfter(this.createdAt)) {
-			throw new IllegalArgumentException("Invalid cancellation time");
+			throw new InvalidBookingDataException("Invalid cancellation time");
 		}
 		this.cancelledAt = time;
 		this.status = BookingStatus.CANCELLED;
@@ -123,14 +125,14 @@ public class Booking {
 	
 	public void complete() {
 		if (this.status != BookingStatus.CONFIRMED) {
-			throw new IllegalArgumentException("Only confirmed booking can be completed");
+			throw new InvalidBookingStateException("Only confirmed booking can be completed");
 		}
 		this.status = BookingStatus.COMPLETED;
 	}
 	
 	public void markNoShow() {
 		if (this.status != BookingStatus.CONFIRMED) {
-			throw new IllegalArgumentException("Cannot mark no show booking");
+			throw new InvalidBookingStateException("Cannot mark no show booking");
 		}
 		this.status = BookingStatus.NO_SHOW;
 	}	

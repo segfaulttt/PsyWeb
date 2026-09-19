@@ -31,6 +31,7 @@ import com.psyweb.booking.domain.Booking;
 import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
+import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.repository.BookingRepository;
 import com.psyweb.booking.repository.ReservationRepository;
@@ -276,7 +277,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 			Throwable confirmationFailure = confirmationFuture.get(5, TimeUnit.SECONDS);
 
 			assertNotNull(confirmationFailure);
-			assertInstanceOf(IllegalArgumentException.class, confirmationFailure);
+			assertInstanceOf(InvalidReservationStateException.class, confirmationFailure);
 
 			Reservation actualReservation = reservationRepository.findById(reservationId).orElseThrow();
 

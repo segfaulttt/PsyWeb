@@ -26,7 +26,7 @@ import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.config.ReservationProperties;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
-import com.psyweb.booking.exception.SlotAlreadyReservedException;
+import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
@@ -137,7 +137,7 @@ public class ReservationServiceTest {
 
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE)).thenReturn(true);
 
-		SlotAlreadyReservedException exception = assertThrows(SlotAlreadyReservedException.class,
+		ActiveReservationAlreadyExistsException exception = assertThrows(ActiveReservationAlreadyExistsException.class,
 				() -> reservationService.createReservation(clientId, slotId));
 
 		assertEquals("SLOT_ALREADY_RESERVED", exception.code());

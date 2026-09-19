@@ -13,7 +13,7 @@ import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.booking.config.ReservationProperties;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
-import com.psyweb.booking.exception.SlotAlreadyReservedException;
+import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.service.UserService;
@@ -58,7 +58,7 @@ public class ReservationService {
 			throw new IllegalArgumentException("Illegal argument");
 		}
 		if (reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE) ) {
-			throw new SlotAlreadyReservedException("Slot is already reserved");
+			throw new ActiveReservationAlreadyExistsException("Slot is already reserved");
 		}
 		User user = userService.getActiveUser(clientId);
 		AvailabilitySlot slot = slotService.reserveSlot(slotId);
@@ -69,7 +69,7 @@ public class ReservationService {
 		    return reservationRepository.saveAndFlush(reservation);
 		} catch (DataIntegrityViolationException e) {
 			if (isActiveReservationConstraintViolation(e)) {
-				throw new SlotAlreadyReservedException("Slot is already reserved", e);
+				throw new ActiveReservationAlreadyExistsException("Slot is already reserved", e);
 			}
 			throw e;
 		}

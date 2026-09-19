@@ -3,6 +3,8 @@ package com.psyweb.booking.domain;
 import java.time.LocalDateTime;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.booking.exception.InvalidReservationDataException;
+import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.user.domain.User;
 
 import jakarta.persistence.Column;
@@ -46,16 +48,16 @@ public class Reservation {
 	
 	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
 		if (client == null) {
-	        throw new IllegalArgumentException("Incorrect client");
+	        throw new InvalidReservationDataException("Incorrect client");
 	    }
 	    if (slot == null) {
-	        throw new IllegalArgumentException("Slot cannot be null");
+	        throw new InvalidReservationDataException("Slot cannot be null");
 	    }
 	    if (createdAt == null) {
-	        throw new IllegalArgumentException("Created time cannot be null");
+	        throw new InvalidReservationDataException("Created time cannot be null");
 	    }
 	    if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
-	        throw new IllegalArgumentException("Incorrect expires time");
+	        throw new InvalidReservationDataException("Incorrect expires time");
 	    }
 
 	    this.client = client;
@@ -91,7 +93,7 @@ public class Reservation {
 	
 	public void expire(LocalDateTime now) {
 	    if (!isExpired(now)) {
-	        throw new IllegalArgumentException("Cannot mark expired");
+	        throw new InvalidReservationStateException("Cannot mark expired");
 	    }
 
 	    status = ReservationStatus.EXPIRED;
@@ -103,14 +105,14 @@ public class Reservation {
 	
 	public void cancel() {
 		if (this.status != ReservationStatus.ACTIVE) {
-			throw new IllegalArgumentException("Cannot mark cancelled");
+			throw new InvalidReservationStateException("Cannot mark cancelled");
 		}
 		this.status = ReservationStatus.CANCELLED;
 	}
 	
 	public void confirm(LocalDateTime now) {
 	    if (status != ReservationStatus.ACTIVE || !expiresAt.isAfter(now)) {
-	        throw new IllegalArgumentException("Cannot mark confirm");
+	        throw new InvalidReservationStateException("Cannot mark confirm");
 	    }
 
 	    status = ReservationStatus.CONFIRMED;

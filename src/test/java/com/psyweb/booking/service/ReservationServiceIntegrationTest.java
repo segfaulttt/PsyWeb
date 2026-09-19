@@ -27,7 +27,7 @@ import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
-import com.psyweb.booking.exception.SlotAlreadyReservedException;
+import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.repository.SpecialistRepository;
@@ -95,10 +95,10 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 					successfulAttempts++;
 				} catch (ExecutionException e) {
 					Throwable cause = e.getCause();
-					SlotAlreadyReservedException conflictException = assertInstanceOf(
-							SlotAlreadyReservedException.class, cause);
+					ActiveReservationAlreadyExistsException conflictException = assertInstanceOf(
+							ActiveReservationAlreadyExistsException.class, cause);
 
-					assertEquals("SLOT_ALREADY_RESERVED", conflictException.code());
+					assertEquals("ACTIVE_RESERVATION_ALREADY_EXISTS", conflictException.code());
 					assertEquals("Slot is already reserved", conflictException.getMessage());
 					assertInstanceOf(DataIntegrityViolationException.class, conflictException.getCause());
 					failedAttempts++;

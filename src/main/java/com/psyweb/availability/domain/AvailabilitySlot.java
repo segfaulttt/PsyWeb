@@ -2,6 +2,7 @@ package com.psyweb.availability.domain;
 
 import java.time.LocalDateTime;
 
+import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.specialist.domain.Specialist;
 
@@ -42,14 +43,14 @@ public class AvailabilitySlot {
 	
 	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
 		if (startTime == null || endTime == null) {
-		    throw new IllegalArgumentException("Time cannot be null");
+		    throw new InvalidAvailabilitySlotDataException("Time cannot be null");
 		}
 
 		if (!startTime.isBefore(endTime)) {
-		    throw new IllegalArgumentException("Start must be before end");
+		    throw new InvalidAvailabilitySlotDataException("Start must be before end");
 		}
 		if (specialist == null) {
-			throw new IllegalArgumentException("Specialist cannot be null");
+			throw new InvalidAvailabilitySlotDataException("Specialist cannot be null");
 		}
 		this.specialist = specialist;
 		this.startTime = startTime;

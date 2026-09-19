@@ -2,7 +2,7 @@ package com.psyweb.availability.exception;
 
 import com.psyweb.common.exception.ValidationException;
 
-public class InvalidAvailabilitySlotDataException extends ValidationException {
+public final class InvalidAvailabilitySlotDataException extends ValidationException {
 	private static final String CODE = "AVAILABILITY_SLOT_INVALID_DATA";
 	
 	public InvalidAvailabilitySlotDataException(String message) {

@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
+import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
@@ -163,7 +164,7 @@ class AvailabilitySlotServiceTest {
 
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Specialist id cannot be null", exception.getMessage());
-		
+
 		verify(specialistService, never()).getEligibleSpecialist(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
@@ -173,7 +174,8 @@ class AvailabilitySlotServiceTest {
 	public void shouldRejectSlotCreationWhenStartTimeIsNull() {
 		LocalDateTime end = now.plusHours(2);
 
-		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, () -> slotService.createSlot(1L, null, end));
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> slotService.createSlot(1L, null, end));
 
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Time cannot be null", exception.getMessage());
@@ -234,7 +236,8 @@ class AvailabilitySlotServiceTest {
 	public void shouldRejectSlotCreationWhenStartTimeEqualsNow() {
 		LocalDateTime end = now.plusHours(1);
 
-		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, () -> slotService.createSlot(1L, now, end));
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> slotService.createSlot(1L, now, end));
 
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Start time must be after now", exception.getMessage());
@@ -512,6 +515,19 @@ class AvailabilitySlotServiceTest {
 
 		assertEquals("Cannot release booking from slot with status CANCELLED", exception.getMessage());
 		verify(slotRepository).findById(SLOT_ID);
+		verify(slotRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldRejectReservationWhenSlotNotFound() {
+		when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.empty());
+
+		AvailabilitySlotNotFoundException exception = assertThrows(AvailabilitySlotNotFoundException.class,
+				() -> slotService.reserveSlot(SLOT_ID));
+
+		assertEquals("AVAILABILITY_SLOT_NOT_FOUND", exception.code());
+		assertEquals("Slot not found", exception.getMessage());
+
 		verify(slotRepository, never()).save(any());
 	}
 }

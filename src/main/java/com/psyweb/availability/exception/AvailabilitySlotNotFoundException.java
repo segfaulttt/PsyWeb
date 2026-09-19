@@ -2,7 +2,7 @@ package com.psyweb.availability.exception;
 
 import com.psyweb.common.exception.NotFoundException;
 
-public class AvailabilitySlotNotFoundException extends NotFoundException {
+public final class AvailabilitySlotNotFoundException extends NotFoundException {
 	private static final String CODE = "AVAILABILITY_SLOT_NOT_FOUND";
 	
 	public AvailabilitySlotNotFoundException(String message) {

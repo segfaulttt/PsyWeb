@@ -2,7 +2,7 @@ package com.psyweb.booking.exception;
 
 import com.psyweb.common.exception.ExpiredException;
 
-public class ReservationExpiredException extends ExpiredException{
+public final class ReservationExpiredException extends ExpiredException{
 	private static final String CODE = "RESERVATION_EXPIRED";
 	
 	public ReservationExpiredException(String message) {

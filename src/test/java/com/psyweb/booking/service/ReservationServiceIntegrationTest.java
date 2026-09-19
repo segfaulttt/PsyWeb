@@ -98,7 +98,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 					ActiveReservationAlreadyExistsException conflictException = assertInstanceOf(
 							ActiveReservationAlreadyExistsException.class, cause);
 
-					assertEquals("SLOT_ALREADY_RESERVED", conflictException.code());
+					assertEquals("ACTIVE_RESERVATION_ALREADY_EXISTS", conflictException.code());
 					assertEquals("Slot is already reserved", conflictException.getMessage());
 					assertInstanceOf(DataIntegrityViolationException.class, conflictException.getCause());
 					failedAttempts++;

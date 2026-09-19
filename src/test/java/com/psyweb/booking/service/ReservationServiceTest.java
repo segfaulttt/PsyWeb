@@ -27,6 +27,8 @@ import com.psyweb.booking.config.ReservationProperties;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
+import com.psyweb.booking.exception.InvalidReservationDataException;
+import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
@@ -140,7 +142,7 @@ public class ReservationServiceTest {
 		ActiveReservationAlreadyExistsException exception = assertThrows(ActiveReservationAlreadyExistsException.class,
 				() -> reservationService.createReservation(clientId, slotId));
 
-		assertEquals("SLOT_ALREADY_RESERVED", exception.code());
+		assertEquals("ACTIVE_RESERVATION_ALREADY_EXISTS", exception.code());
 		assertEquals("Slot is already reserved", exception.getMessage());
 		verify(reservationRepository, never()).saveAndFlush(any(Reservation.class));
 		verifyNoInteractions(slotService);
@@ -205,9 +207,10 @@ public class ReservationServiceTest {
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		when(reservationRepository.findForUpdateById(reservationId)).thenReturn(Optional.of(reservation));
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationStateException exception = assertThrows(InvalidReservationStateException.class,
 				() -> reservationService.cancelReservation(reservationId));
 
+		assertEquals("RESERVATION_INVALID_STATE", exception.code());
 		assertEquals("Cannot mark cancelled", exception.getMessage());
 		assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
 		verify(slotService, never()).releaseReservation(anyLong());
@@ -231,9 +234,10 @@ public class ReservationServiceTest {
 	void shouldThrowExceptionWhenExpireReservationIdIsNull() {
 		Long reservationId = null;
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationDataException exception = assertThrows(InvalidReservationDataException.class,
 				() -> reservationService.expireReservation(reservationId));
 
+		assertEquals("RESERVATION_INVALID_DATA", exception.code());
 		assertEquals("Reservation id cannot be null", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, reservation.getStatus());
 		verifyNoInteractions(slotService);
@@ -257,9 +261,10 @@ public class ReservationServiceTest {
 
 		when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationStateException exception = assertThrows(InvalidReservationStateException.class,
 				() -> reservationService.getActiveReservationById(reservationId));
 
+		assertEquals("RESERVATION_INVALID_STATE", exception.code());
 		assertEquals("Reservation must have status 'ACTIVE'", exception.getMessage());
 	}
 
@@ -267,9 +272,10 @@ public class ReservationServiceTest {
 	void shouldThrowExceptionWhenGetReservationIdIsNull() {
 		Long reservationId = null;
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationDataException exception = assertThrows(InvalidReservationDataException.class,
 				() -> reservationService.getActiveReservationById(reservationId));
 
+		assertEquals("RESERVATION_INVALID_DATA", exception.code());
 		assertEquals("Incorrect Id", exception.getMessage());
 	}
 
@@ -280,9 +286,10 @@ public class ReservationServiceTest {
 
 		when(reservationRepository.findForUpdateById(first.getId())).thenReturn(Optional.of(first));
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationStateException exception = assertThrows(InvalidReservationStateException.class,
 				() -> reservationService.expireReservation(first.getId()));
 
+		assertEquals("RESERVATION_INVALID_STATE", exception.code());
 		assertEquals("Cannot mark expired", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, first.getStatus());
 		verify(slotService, never()).releaseReservation(any());
@@ -290,9 +297,10 @@ public class ReservationServiceTest {
 
 	@Test
 	public void shouldThrowExceptionWhenCancelReservationIdIsNull() {
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationDataException exception = assertThrows(InvalidReservationDataException.class,
 				() -> reservationService.cancelReservation(null));
 
+		assertEquals("RESERVATION_INVALID_DATA", exception.code());
 		assertEquals("Reservation id cannot be null", exception.getMessage());
 		verify(slotService, never()).releaseReservation(any());
 		verify(reservationRepository, never()).findForUpdateById(any());

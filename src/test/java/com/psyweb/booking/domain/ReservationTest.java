@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
@@ -61,7 +62,7 @@ public class ReservationTest {
 	public void shouldRejectConfirmationWhenNowEqualsExpiresAt() {
 		
 		
-		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+		InvalidReservationStateException exception = assertThrows(InvalidReservationStateException.class,
 				() -> reservation.confirm(now));
 		
 		assertEquals("Cannot mark confirm", exception.getMessage());

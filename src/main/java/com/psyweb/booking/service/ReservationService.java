@@ -14,6 +14,9 @@ import com.psyweb.booking.config.ReservationProperties;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
+import com.psyweb.booking.exception.InvalidReservationDataException;
+import com.psyweb.booking.exception.InvalidReservationStateException;
+import com.psyweb.booking.exception.ReservationNotFoundException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.service.UserService;
@@ -44,18 +47,18 @@ public class ReservationService {
 	
 	private Reservation loadReservation(Long reservationId) {
 		return reservationRepository.findById(reservationId)
-				.orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+				.orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
 	}
 	
 	private Reservation loadReservationForUpdate(Long reservationId) {
 		return reservationRepository.findForUpdateById(reservationId)
-				.orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+				.orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
 	}
 	
 	@Transactional
 	public Reservation createReservation(Long clientId, Long slotId) {
 		if (clientId == null || slotId == null) {
-			throw new IllegalArgumentException("Illegal argument");
+			throw new InvalidReservationDataException("Illegal argument");
 		}
 		if (reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE) ) {
 			throw new ActiveReservationAlreadyExistsException("Slot is already reserved");
@@ -91,7 +94,7 @@ public class ReservationService {
 	@Transactional
 	public void cancelReservation(Long reservationId) {
 		if (reservationId == null) {
-			throw new IllegalArgumentException("Reservation id cannot be null");
+			throw new InvalidReservationDataException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
 		reservation.cancel();
@@ -101,7 +104,7 @@ public class ReservationService {
 	@Transactional
 	public void expireReservation(Long reservationId) {
 		if (reservationId == null) {
-			throw new IllegalArgumentException("Reservation id cannot be null");
+			throw new InvalidReservationDataException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
 		LocalDateTime now = LocalDateTime.now(clock);
@@ -127,14 +130,14 @@ public class ReservationService {
 	public Reservation getActiveReservationById(Long reservationId) {
 		Reservation reservation = getReservation(reservationId);
 		if (reservation.getStatus() != ReservationStatus.ACTIVE) {
-			throw new IllegalArgumentException("Reservation must have status 'ACTIVE'");
+			throw new InvalidReservationStateException("Reservation must have status 'ACTIVE'");
 		}
 		return reservation;
 	}
 	
 	public Reservation getReservation(Long reservationId) {
 		if (reservationId == null) {
-			throw new IllegalArgumentException("Incorrect Id");
+			throw new InvalidReservationDataException("Incorrect Id");
 		}
 		Reservation reservation = loadReservation(reservationId);
 		return reservation;
@@ -142,7 +145,7 @@ public class ReservationService {
 	
 	public Reservation getReservationForUpdate(Long reservationId) {
 		if (reservationId == null) {
-			throw new IllegalArgumentException("Incorrect Id");
+			throw new InvalidReservationDataException("Incorrect Id");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
 		return reservation;

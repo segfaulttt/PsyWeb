@@ -18,6 +18,8 @@ import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationNotFoundException;
 import com.psyweb.booking.repository.ReservationRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.service.UserService;
 
@@ -92,12 +94,12 @@ public class ReservationService {
 	}
 
 	@Transactional
-	public void cancelReservation(Long reservationId) {
+	public void cancelReservation(Long reservationId, LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (reservationId == null) {
 			throw new InvalidReservationDataException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
-		reservation.cancel();
+		reservation.cancel(cancelledAt, initiator, reason);
 		slotService.releaseReservation(reservation.getSlotId());
 	}
 	

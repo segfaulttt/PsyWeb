@@ -19,6 +19,8 @@ import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.exception.ReservationOwnershipException;
 import com.psyweb.booking.repository.BookingRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.service.SpecialistService;
@@ -84,13 +86,13 @@ public class BookingService {
 	}
 	
 	@Transactional
-	public void cancelBooking(Long bookingId) {
+	public void cancelBooking(Long bookingId, CancellationInitiator initiator, CancellationReason reason) {
 		if (bookingId == null) {
 			throw new InvalidBookingDataException("Incorrect id");
 		}
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
-		booking.cancel(LocalDateTime.now(clock));
+		booking.cancel(LocalDateTime.now(clock), initiator, reason);
 		slotService.releaseBooking(booking.getSlotId());
 	}
 	

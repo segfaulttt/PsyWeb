@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 
 import jakarta.persistence.Column;
@@ -39,6 +41,17 @@ public class AvailabilitySlot {
 	@Enumerated(EnumType.STRING)
 	private AvailabilityStatus availabilityStatus;
 	
+	@Column(name = "cancelled_at")
+	private LocalDateTime cancelledAt;
+	
+	@Column(name = "cancellation_initiator")
+	@Enumerated(EnumType.STRING)
+	private CancellationInitiator initiator;
+	
+	@Column(name = "cancellation_reason")
+	@Enumerated(EnumType.STRING)
+	private CancellationReason reason;
+	
 	protected AvailabilitySlot() {}
 	
 	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
@@ -56,6 +69,12 @@ public class AvailabilitySlot {
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.availabilityStatus = AvailabilityStatus.FREE;
+	}
+	
+	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+		if (cancelledAt == null || initiator == null || reason == null) {
+			throw new InvalidAvailabilitySlotDataException("Cancellation metadata cannot be null");
+		}
 	}
 	
 	public Long getId() {
@@ -76,6 +95,18 @@ public class AvailabilitySlot {
 	
 	public AvailabilityStatus getAvailabilityStatus() {
 		return this.availabilityStatus;
+	}
+	
+	public LocalDateTime getCancelledAt() {
+		return this.cancelledAt;
+	}
+	
+	public CancellationInitiator getCancellationInitiator() {
+		return this.initiator;
+	}
+	
+	public CancellationReason getCancellationReason() {
+		return this.reason;
 	}
 	
 	public void reserve() {
@@ -106,10 +137,14 @@ public class AvailabilitySlot {
 		this.availabilityStatus = AvailabilityStatus.FREE;
 	}
 	
-	public void cancel() {
+	public void cancel(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (availabilityStatus == AvailabilityStatus.CANCELLED) {
 			throw new InvalidAvailabilitySlotStateException("Cannot cancel slot with status " + availabilityStatus);
 		}
+		validateCancellation(cancelledAt, initiator, reason);
 		this.availabilityStatus = AvailabilityStatus.CANCELLED;
+		this.cancelledAt = cancelledAt;
+		this.initiator = initiator;
+		this.reason = reason;
 	}
 }

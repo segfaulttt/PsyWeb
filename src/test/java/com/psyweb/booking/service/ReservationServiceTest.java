@@ -30,6 +30,8 @@ import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.repository.ReservationRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
@@ -116,7 +118,7 @@ public class ReservationServiceTest {
 	void shouldNotCreateReservationWhenSlotReservationFails() {
 		Long clientId = 1L;
 		Long slotId = 10L;
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE)).thenReturn(false);
@@ -195,9 +197,13 @@ public class ReservationServiceTest {
 
 		when(reservationRepository.findForUpdateById(reservationId)).thenReturn(Optional.of(reservation));
 
-		reservationService.cancelReservation(reservationId);
+		reservationService.cancelReservation(reservationId, now, CancellationInitiator.CLIENT,
+				CancellationReason.CLIENT_REQUEST);
 
 		assertEquals(ReservationStatus.CANCELLED, reservation.getStatus());
+		assertEquals(now, reservation.getCancelledAt());
+		assertEquals(CancellationInitiator.CLIENT, reservation.getCancellationInitiator());
+		assertEquals(CancellationReason.CLIENT_REQUEST, reservation.getCancellationReason());
 		verify(slotService).releaseReservation(reservation.getSlotId());
 	}
 
@@ -208,7 +214,8 @@ public class ReservationServiceTest {
 
 		when(reservationRepository.findForUpdateById(reservationId)).thenReturn(Optional.of(reservation));
 		InvalidReservationStateException exception = assertThrows(InvalidReservationStateException.class,
-				() -> reservationService.cancelReservation(reservationId));
+				() -> reservationService.cancelReservation(reservationId, now, CancellationInitiator.CLIENT,
+						CancellationReason.CLIENT_REQUEST));
 
 		assertEquals("RESERVATION_INVALID_STATE", exception.code());
 		assertEquals("Cannot mark cancelled", exception.getMessage());
@@ -298,7 +305,8 @@ public class ReservationServiceTest {
 	@Test
 	public void shouldThrowExceptionWhenCancelReservationIdIsNull() {
 		InvalidReservationDataException exception = assertThrows(InvalidReservationDataException.class,
-				() -> reservationService.cancelReservation(null));
+				() -> reservationService.cancelReservation(null, now, CancellationInitiator.CLIENT,
+						CancellationReason.CLIENT_REQUEST));
 
 		assertEquals("RESERVATION_INVALID_DATA", exception.code());
 		assertEquals("Reservation id cannot be null", exception.getMessage());

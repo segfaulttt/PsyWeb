@@ -22,6 +22,8 @@ import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.exception.SpecialistNotEligibleException;
 import com.psyweb.specialist.service.SpecialistService;
@@ -318,9 +320,13 @@ class AvailabilitySlotServiceTest {
 		when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
 		when(slotRepository.save(slot)).thenReturn(slot);
 
-		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID, now, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+		assertEquals(now, slot.getCancelledAt());
+		assertEquals(CancellationInitiator.SPECIALIST, slot.getCancellationInitiator());
+		assertEquals(CancellationReason.SPECIALIST_REMOVED_AVAILABILITY, slot.getCancellationReason());
 		verify(slotRepository).findById(SLOT_ID);
 		verify(slotRepository).save(slot);
 	}
@@ -332,9 +338,13 @@ class AvailabilitySlotServiceTest {
 		when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
 		when(slotRepository.save(slot)).thenReturn(slot);
 
-		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID, now, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+		assertEquals(now, slot.getCancelledAt());
+		assertEquals(CancellationInitiator.SPECIALIST, slot.getCancellationInitiator());
+		assertEquals(CancellationReason.SPECIALIST_REMOVED_AVAILABILITY, slot.getCancellationReason());
 		verify(slotRepository).findById(SLOT_ID);
 		verify(slotRepository).save(slot);
 	}
@@ -347,22 +357,27 @@ class AvailabilitySlotServiceTest {
 		when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
 		when(slotRepository.save(slot)).thenReturn(slot);
 
-		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID);
+		AvailabilitySlot result = slotService.cancelSlot(SLOT_ID, now, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+		assertEquals(now, slot.getCancelledAt());
+		assertEquals(CancellationInitiator.SPECIALIST, slot.getCancellationInitiator());
+		assertEquals(CancellationReason.SPECIALIST_REMOVED_AVAILABILITY, slot.getCancellationReason());
 		verify(slotRepository).findById(SLOT_ID);
 		verify(slotRepository).save(slot);
 	}
 
 	@Test
 	public void shouldRejectRepeatedCancellation() {
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
 		when(slotRepository.findById(SLOT_ID)).thenReturn(Optional.of(slot));
 
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
-				() -> slotService.cancelSlot(SLOT_ID));
+				() -> slotService.cancelSlot(SLOT_ID, now, CancellationInitiator.SPECIALIST,
+						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 		assertEquals("Cannot cancel slot with status CANCELLED", exception.getMessage());
@@ -400,7 +415,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectReservationWhenSlotIsCancelled() {
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
@@ -431,7 +446,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectReservationReleaseWhenSlotIsCancelled() {
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
@@ -475,7 +490,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectBookingConfirmationWhenSlotIsCancelled() {
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
@@ -505,7 +520,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectBookingReleaseWhenSlotIsCancelled() {
-		slot.cancel();
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 

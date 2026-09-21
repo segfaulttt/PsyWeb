@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.user.domain.User;
 
 import jakarta.persistence.Column;
@@ -44,6 +46,17 @@ public class Reservation {
 	@Column(name = "expires_at", nullable = false)
 	private LocalDateTime expiresAt;
 	
+	@Column(name = "cancelled_at")
+	private LocalDateTime cancelledAt;
+	
+	@Column(name = "cancellation_initiator")
+	@Enumerated(EnumType.STRING)
+	private CancellationInitiator initiator;
+	
+	@Column(name = "cancellation_reason")
+	@Enumerated(EnumType.STRING)
+	private CancellationReason reason;
+	
 	protected Reservation() {}
 	
 	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
@@ -65,6 +78,12 @@ public class Reservation {
 	    this.status = ReservationStatus.ACTIVE;
 	    this.createdAt = createdAt;
 	    this.expiresAt = expiresAt;
+	}
+	
+	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+		if (cancelledAt == null || initiator == null || reason == null) {
+			throw new InvalidReservationDataException("Cancellation metadata cannot be null");
+		}
 	}
 	
 	public Long getId() {
@@ -91,6 +110,18 @@ public class Reservation {
 		return this.expiresAt;
 	}
 	
+	public LocalDateTime getCancelledAt() {
+		return this.cancelledAt;
+	}
+	
+	public CancellationInitiator getCancellationInitiator() {
+		return this.initiator;
+	}
+	
+	public CancellationReason getCancellationReason() {
+		return this.reason;
+	}
+	
 	public void expire(LocalDateTime now) {
 	    if (!isExpired(now)) {
 	        throw new InvalidReservationStateException("Cannot mark expired");
@@ -103,11 +134,15 @@ public class Reservation {
 	    return status == ReservationStatus.ACTIVE && !expiresAt.isAfter(now);
 	}
 	
-	public void cancel() {
+	public void cancel(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+		validateCancellation(cancelledAt, initiator, reason);
 		if (this.status != ReservationStatus.ACTIVE) {
 			throw new InvalidReservationStateException("Cannot mark cancelled");
 		}
 		this.status = ReservationStatus.CANCELLED;
+		this.cancelledAt = cancelledAt;
+		this.initiator = initiator;
+		this.reason = reason;
 	}
 	
 	public void confirm(LocalDateTime now) {

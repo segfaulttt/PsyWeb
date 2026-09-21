@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.repository.SpecialistRepository;
 import com.psyweb.testsupport.PostgreSQLIntegrationTest;
@@ -152,7 +154,8 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		Reservation cancelledReservation = new Reservation(client, cancelledSlot, now.minusMinutes(20),
 				now.minusMinutes(10));
 
-		cancelledReservation.cancel();
+		cancelledReservation.cancel(now.minusMinutes(15), CancellationInitiator.CLIENT,
+				CancellationReason.CLIENT_REQUEST);
 
 		reservationRepository.saveAllAndFlush(
 				List.of(expiredReservation, boundaryReservation, futureReservation, cancelledReservation));
@@ -216,4 +219,3 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		assertEquals(List.of(first.getId(), second.getId()), result.stream().map(Reservation::getId).toList());
 	}
 }
-

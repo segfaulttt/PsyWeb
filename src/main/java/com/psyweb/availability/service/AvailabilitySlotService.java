@@ -12,6 +12,8 @@ import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.service.SpecialistService;
 
@@ -120,7 +122,7 @@ public class AvailabilitySlotService {
 		return slotRepository.save(slot);
 	}
 	
-	public AvailabilitySlot cancelSlot(Long slotId) {
+	public AvailabilitySlot cancelSlot(Long slotId, LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
@@ -128,7 +130,7 @@ public class AvailabilitySlotService {
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
-		slot.cancel();
+		slot.cancel(cancelledAt, initiator, reason);
 		return slotRepository.save(slot);
 	}
 }

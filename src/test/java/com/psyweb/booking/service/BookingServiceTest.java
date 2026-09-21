@@ -192,7 +192,7 @@ public class BookingServiceTest {
 	void shouldThrowWhenReservationIsNotActive() {
 		Long reservationId = 100L;
 		Long clientId = 1L;
-		reservation.cancel(now, CancellationInitiator.SYSTEM, CancellationReason.SPECIALIST_SUSPENDED);
+		reservation.cancel(now, CancellationInitiator.ADMIN, CancellationReason.SPECIALIST_SUSPENDED);
 
 		when(reservationService.getReservationForUpdate(reservationId)).thenReturn(reservation);
 
@@ -219,7 +219,7 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 		when(slotService.releaseBooking(slot.getId())).thenReturn(slot);
 
-		bookingService.cancelBooking(bookingId, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
+		bookingService.cancelBooking(bookingId, now, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
 
 		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
 		assertNotEquals(null, booking.getCancelledAt());
@@ -234,13 +234,10 @@ public class BookingServiceTest {
 		Long bookingId = null;
 
 		InvalidBookingDataException exception = assertThrows(InvalidBookingDataException.class, () -> bookingService
-				.cancelBooking(bookingId, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST));
+				.cancelBooking(bookingId, now, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST));
 
 		assertEquals("BOOKING_INVALID_DATA", exception.code());
 		assertEquals("Incorrect id", exception.getMessage());
-		assertNull(reservation.getCancelledAt());
-		assertNull(reservation.getCancellationInitiator());
-		assertNull(reservation.getCancellationReason());
 		verify(bookingRepository, never()).save(any());
 		verifyNoInteractions(slotService);
 	}
@@ -256,7 +253,7 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
 		BookingNotFoundException exception = assertThrows(BookingNotFoundException.class,
-				() -> bookingService.cancelBooking(bookingId, CancellationInitiator.SPECIALIST,
+				() -> bookingService.cancelBooking(bookingId, now, CancellationInitiator.SPECIALIST,
 						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals("BOOKING_NOT_FOUND", exception.code());
@@ -278,7 +275,7 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
 		InvalidBookingStateException exception = assertThrows(InvalidBookingStateException.class,
-				() -> bookingService.cancelBooking(bookingId, CancellationInitiator.SPECIALIST,
+				() -> bookingService.cancelBooking(bookingId, now, CancellationInitiator.SPECIALIST,
 						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals("BOOKING_INVALID_STATE", exception.code());

@@ -118,7 +118,7 @@ public class ReservationServiceTest {
 	void shouldNotCreateReservationWhenSlotReservationFails() {
 		Long clientId = 1L;
 		Long slotId = 10L;
-		slot.cancel(now, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
+		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 
 		when(reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE)).thenReturn(false);

@@ -86,14 +86,14 @@ public class BookingService {
 	}
 	
 	@Transactional
-	public void cancelBooking(Long bookingId, CancellationInitiator initiator, CancellationReason reason) {
+	public void cancelBooking(Long bookingId, LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (bookingId == null) {
 			throw new InvalidBookingDataException("Incorrect id");
 		}
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
-		booking.cancel(LocalDateTime.now(clock), initiator, reason);
-		slotService.releaseBooking(booking.getSlotId());
+		booking.cancel(cancelledAt, initiator, reason);
+	    slotService.releaseBooking(booking.getSlotId());
 	}
 	
 	public List<Booking> getClientBookings(Long clientId, BookingStatus status) {

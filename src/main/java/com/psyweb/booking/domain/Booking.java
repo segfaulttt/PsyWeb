@@ -92,7 +92,7 @@ public class Booking {
 	
 	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
-			throw new IllegalArgumentException("Invaid cancellation parametr");
+			throw new InvalidBookingDataException("Cancellation metadata cannot be null");
 		}
 	}
 	

@@ -73,7 +73,7 @@ public class AvailabilitySlot {
 	
 	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
-			throw new IllegalArgumentException("Invaid cancellation parametr");
+			throw new InvalidAvailabilitySlotDataException("Cancellation metadata cannot be null");
 		}
 	}
 	

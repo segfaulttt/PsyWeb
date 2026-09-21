@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.booking.exception.InvalidBookingDataException;
 import com.psyweb.booking.exception.InvalidBookingStateException;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.user.domain.User;
 
@@ -54,6 +56,14 @@ public class Booking {
 	@Column(name = "cancelled_at")
 	private LocalDateTime cancelledAt;
 	
+	@Column(name = "cancellation_initiator")
+	@Enumerated(EnumType.STRING)
+	private CancellationInitiator initiator;
+	
+	@Column(name = "cancellation_reason")
+	@Enumerated(EnumType.STRING)
+	private CancellationReason reason;
+	
 	protected Booking() {}
 	
 	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation, LocalDateTime createdAt) {
@@ -78,6 +88,12 @@ public class Booking {
 		this.slot = slot;
 		this.reservation = reservation;
 		this.status = BookingStatus.CONFIRMED;
+	}
+	
+	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+		if (cancelledAt == null || initiator == null || reason == null) {
+			throw new IllegalArgumentException("Invaid cancellation parametr");
+		}
 	}
 	
 	public Long getId() {
@@ -112,15 +128,27 @@ public class Booking {
 		return this.cancelledAt;
 	}
 	
-	public void cancel(LocalDateTime time) {
+	public CancellationInitiator getCancellationInitiator() {
+		return this.initiator;
+	}
+	
+	public CancellationReason getCancellationReason() {
+		return this.reason;
+	}
+	
+	public void cancel(LocalDateTime time, CancellationInitiator initiator, CancellationReason reason) {
 		if (this.status != BookingStatus.CONFIRMED) {
 			throw new InvalidBookingStateException("Cannot cancel booking");
 		}
-		if (time == null || !time.isAfter(this.createdAt)) {
+		validateCancellation(time, initiator, reason);
+		
+		if (!time.isAfter(this.createdAt)) {
 			throw new InvalidBookingDataException("Invalid cancellation time");
 		}
 		this.cancelledAt = time;
 		this.status = BookingStatus.CANCELLED;
+		this.initiator = initiator;
+		this.reason = reason;
 	}
 	
 	public void complete() {

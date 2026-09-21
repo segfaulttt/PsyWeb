@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -29,6 +30,8 @@ import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.repository.ReservationRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.repository.SpecialistRepository;
 import com.psyweb.testsupport.PostgreSQLIntegrationTest;
@@ -55,7 +58,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 
 	@Autowired
 	private ReservationService reservationService;
-	
+
 	@Test
 	public void shouldTranslateDatabaseConflictWhenConcurrentReservationsTargetSameSlot()
 			throws InterruptedException, TimeoutException {
@@ -137,7 +140,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 
 	@Test
 	public void shouldCancelReservationAndReleaseSlot() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
 		User specialistUser = userRepository.saveAndFlush(
 				new User("specialist-cancel@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -157,13 +160,18 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 		Reservation reservation = reservationRepository
 				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(5)));
 
-		reservationService.cancelReservation(reservation.getId());
+		reservationService.cancelReservation(reservation.getId(), now, CancellationInitiator.CLIENT,
+				CancellationReason.CLIENT_REQUEST);
 
 		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
 		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
 
 		assertEquals(ReservationStatus.CANCELLED, result.getStatus());
 		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
+		assertEquals(ReservationStatus.CANCELLED, result.getStatus());
+		assertEquals(now, result.getCancelledAt());
+		assertEquals(CancellationInitiator.CLIENT, result.getCancellationInitiator());
+		assertEquals(CancellationReason.CLIENT_REQUEST, result.getCancellationReason());
 	}
 
 	@Test
@@ -219,7 +227,8 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(5)));
 
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
-				() -> reservationService.cancelReservation(reservation.getId()));
+				() -> reservationService.cancelReservation(reservation.getId(), now, CancellationInitiator.CLIENT,
+						CancellationReason.CLIENT_REQUEST));
 
 		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
 		AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
@@ -227,6 +236,8 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 		assertEquals("Cannot release reservation from slot with status FREE", exception.getMessage());
 		assertEquals(ReservationStatus.ACTIVE, result.getStatus());
 		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
-
+		assertNull(result.getCancelledAt());
+		assertNull(result.getCancellationInitiator());
+		assertNull(result.getCancellationReason());
 	}
 }

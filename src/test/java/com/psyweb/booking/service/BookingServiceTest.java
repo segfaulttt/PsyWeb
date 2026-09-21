@@ -33,6 +33,8 @@ import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationExpiredException;
 import com.psyweb.booking.exception.ReservationOwnershipException;
 import com.psyweb.booking.repository.BookingRepository;
+import com.psyweb.cancellation.domain.CancellationInitiator;
+import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.service.SpecialistService;
@@ -190,7 +192,7 @@ public class BookingServiceTest {
 	void shouldThrowWhenReservationIsNotActive() {
 		Long reservationId = 100L;
 		Long clientId = 1L;
-		reservation.cancel();
+		reservation.cancel(now, CancellationInitiator.SYSTEM, CancellationReason.SPECIALIST_SUSPENDED);
 
 		when(reservationService.getReservationForUpdate(reservationId)).thenReturn(reservation);
 
@@ -217,11 +219,13 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 		when(slotService.releaseBooking(slot.getId())).thenReturn(slot);
 
-		bookingService.cancelBooking(bookingId);
+		bookingService.cancelBooking(bookingId, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
 
 		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
 		assertNotEquals(null, booking.getCancelledAt());
 		assertEquals(now, booking.getCancelledAt());
+		assertEquals(CancellationInitiator.CLIENT, booking.getCancellationInitiator());
+		assertEquals(CancellationReason.CLIENT_REQUEST, booking.getCancellationReason());
 		verify(slotService).releaseBooking(slot.getId());
 	}
 
@@ -229,11 +233,14 @@ public class BookingServiceTest {
 	void shouldThrowWhenBookingIdIsNull() {
 		Long bookingId = null;
 
-		InvalidBookingDataException exception = assertThrows(InvalidBookingDataException.class,
-				() -> bookingService.cancelBooking(bookingId));
+		InvalidBookingDataException exception = assertThrows(InvalidBookingDataException.class, () -> bookingService
+				.cancelBooking(bookingId, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST));
 
 		assertEquals("BOOKING_INVALID_DATA", exception.code());
 		assertEquals("Incorrect id", exception.getMessage());
+		assertNull(reservation.getCancelledAt());
+		assertNull(reservation.getCancellationInitiator());
+		assertNull(reservation.getCancellationReason());
 		verify(bookingRepository, never()).save(any());
 		verifyNoInteractions(slotService);
 	}
@@ -249,10 +256,13 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
 		BookingNotFoundException exception = assertThrows(BookingNotFoundException.class,
-				() -> bookingService.cancelBooking(bookingId));
+				() -> bookingService.cancelBooking(bookingId, CancellationInitiator.SPECIALIST,
+						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals("BOOKING_NOT_FOUND", exception.code());
 		assertEquals("Booking not found", exception.getMessage());
+		assertNull(booking.getCancellationInitiator());
+		assertNull(booking.getCancellationReason());
 		verify(bookingRepository, never()).save(any());
 		verifyNoInteractions(slotService);
 	}
@@ -268,10 +278,13 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 
 		InvalidBookingStateException exception = assertThrows(InvalidBookingStateException.class,
-				() -> bookingService.cancelBooking(bookingId));
+				() -> bookingService.cancelBooking(bookingId, CancellationInitiator.SPECIALIST,
+						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals("BOOKING_INVALID_STATE", exception.code());
 		assertEquals("Cannot cancel booking", exception.getMessage());
+		assertNull(booking.getCancellationInitiator());
+		assertNull(booking.getCancellationReason());
 		verifyNoInteractions(slotService);
 	}
 
@@ -287,7 +300,8 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
-		cancelledBooking.cancel(now.plusMinutes(1));
+		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		List<Booking> bookings = List.of(completedBooking, cancelledBooking);
 
@@ -309,7 +323,8 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
-		cancelledBooking.cancel(now.plusMinutes(1));
+		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		when(bookingRepository.findByClient_IdAndStatus(clientId, status)).thenReturn(List.of(cancelledBooking));
 
@@ -346,7 +361,8 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
-		cancelledBooking.cancel(now.plusMinutes(1));
+		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		List<Booking> bookings = List.of(completedBooking, cancelledBooking);
 
@@ -368,7 +384,8 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
-		cancelledBooking.cancel(now.plusMinutes(1));
+		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		when(bookingRepository.findBySpecialist_IdAndStatus(specialistId, status))
 				.thenReturn(List.of(cancelledBooking));

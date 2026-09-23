@@ -3,6 +3,7 @@ package com.psyweb.booking.repository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.hibernate.exception.ConstraintViolationException;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
+import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
@@ -29,8 +31,17 @@ import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.repository.UserRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @Transactional
 public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationTest {
+
+	@PersistenceContext
+	private EntityManager entityManager;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Autowired
 	private Clock clock;
@@ -217,5 +228,80 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 		assertEquals(2, result.size());
 		assertEquals(List.of(first.getId(), second.getId()), result.stream().map(Reservation::getId).toList());
+	}
+
+	@Test
+	public void shouldPersistReservationCancellationMetadata() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime startTime = now.plusDays(1);
+		LocalDateTime createdAt = now.minusMinutes(5);
+		LocalDateTime expiresAt = now.plusMinutes(10);
+		LocalDateTime cancelledAt = now;
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-metadata@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+				new Specialist(specialistUser, "Anna", "ReservationMetadata", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(new User("client-reservation-metadata@example.com", "password-hash",
+				UserRole.CLIENT, UserStatus.ACTIVE));
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = new Reservation(client, slot, createdAt, expiresAt);
+
+		reservation.cancel(cancelledAt, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
+
+		reservation = reservationRepository.saveAndFlush(reservation);
+
+		Long reservationId = reservation.getId();
+
+		entityManager.clear();
+
+		Reservation result = reservationRepository.findById(reservationId).orElseThrow();
+
+		assertEquals(reservationId, reservation.getId());
+		assertEquals(ReservationStatus.CANCELLED, result.getStatus());
+		assertEquals(cancelledAt, result.getCancelledAt());
+		assertEquals(CancellationInitiator.CLIENT, result.getCancellationInitiator());
+		assertEquals(CancellationReason.CLIENT_REQUEST, result.getCancellationReason());
+	}
+
+	@Test
+	public void shouldRejectPartialReservationCancellationMetadata() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime startTime = now.plusDays(1);
+		LocalDateTime createdAt = now.minusMinutes(5);
+		LocalDateTime expiresAt = now.plusMinutes(10);
+		LocalDateTime cancelledAt = now;
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-partial@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+				new Specialist(specialistUser, "Anna", "ReservationPartial", Duration.ZERO, Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(new User("client-reservation-partial@example.com", "password-hash",
+				UserRole.CLIENT, UserStatus.ACTIVE));
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = reservationRepository
+				.saveAndFlush(new Reservation(client, slot, createdAt, expiresAt));
+
+		Long reservationId = reservation.getId();
+
+		assertThrows(DataIntegrityViolationException.class, () -> jdbcTemplate.update("""
+				UPDATE reservations
+				SET cancelled_at = ?
+				WHERE id = ?
+				""", cancelledAt, reservationId));
 	}
 }

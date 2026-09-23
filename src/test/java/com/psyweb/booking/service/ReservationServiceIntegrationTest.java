@@ -203,6 +203,9 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 
 		assertEquals(ReservationStatus.EXPIRED, result.getStatus());
 		assertEquals(AvailabilityStatus.FREE, savedSlot.getAvailabilityStatus());
+		assertNull(result.getCancelledAt());
+		assertNull(result.getCancellationInitiator());
+		assertNull(result.getCancellationReason());
 	}
 
 	@Test

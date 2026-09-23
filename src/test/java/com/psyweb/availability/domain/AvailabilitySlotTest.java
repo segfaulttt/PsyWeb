@@ -1,6 +1,7 @@
 package com.psyweb.availability.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
@@ -316,5 +317,44 @@ public class AvailabilitySlotTest {
 
 		assertEquals("Cannot cancel slot with status CANCELLED", exception.getMessage());
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
+	}
+	
+	@Test
+	public void shouldRejectCancellationWhenCancelledAtIsNull() {
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
+				() -> slot.cancel(null, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+		
+		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
+		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+		assertNull(slot.getCancelledAt());
+		assertNull(slot.getCancellationInitiator());
+		assertNull(slot.getCancellationReason());
+	}
+	
+	@Test
+	public void shouldRejectCancellationWhenInitiatorIsNull() {
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
+				() -> slot.cancel(now, null, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+		
+		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
+		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+		assertNull(slot.getCancelledAt());
+		assertNull(slot.getCancellationInitiator());
+		assertNull(slot.getCancellationReason());
+	}
+	
+	@Test
+	public void shouldRejectCancellationWhenReasonIsNull() {
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
+				() -> slot.cancel(now, CancellationInitiator.SPECIALIST, null));
+		
+		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
+		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+		assertNull(slot.getCancelledAt());
+		assertNull(slot.getCancellationInitiator());
+		assertNull(slot.getCancellationReason());
 	}
 }

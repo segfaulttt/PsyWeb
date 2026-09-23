@@ -226,11 +226,10 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 		booking = bookingRepository.saveAndFlush(booking);
 
 		Long bookingId = booking.getId();
-		Long reservationId = reservation.getId();
 
 		entityManager.clear();
 
-		Booking result = bookingRepository.findById(reservationId).orElseThrow();
+		Booking result = bookingRepository.findById(bookingId).orElseThrow();
 
 		assertEquals(bookingId, result.getId());
 		assertEquals(BookingStatus.CANCELLED, result.getStatus());

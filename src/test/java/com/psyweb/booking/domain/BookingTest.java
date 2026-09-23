@@ -25,10 +25,6 @@ import com.psyweb.user.domain.UserStatus;
 public class BookingTest {
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
 	private final LocalDateTime now = LocalDateTime.now(clock);
-//	private Specialist specialist;
-//	private User client;
-//	private AvailabilitySlot slot;
-//	private Reservation reservation;
 	private Booking booking;
 
 	@BeforeEach

@@ -264,7 +264,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 		Reservation result = reservationRepository.findById(reservationId).orElseThrow();
 
-		assertEquals(reservationId, reservation.getId());
+		assertEquals(reservationId, result.getId());
 		assertEquals(ReservationStatus.CANCELLED, result.getStatus());
 		assertEquals(cancelledAt, result.getCancelledAt());
 		assertEquals(CancellationInitiator.CLIENT, result.getCancellationInitiator());

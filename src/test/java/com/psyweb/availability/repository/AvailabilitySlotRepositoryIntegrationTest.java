@@ -13,6 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
@@ -74,7 +75,9 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 		assertEquals(slotId, result.getId());
 		assertEquals(cancelledAt, result.getCancelledAt());
-
+		assertEquals(AvailabilityStatus.CANCELLED, result.getAvailabilityStatus());
+		assertEquals(CancellationInitiator.SPECIALIST, result.getCancellationInitiator());
+		assertEquals(CancellationReason.SPECIALIST_REMOVED_AVAILABILITY, result.getCancellationReason());
 	}
 
 	@Test

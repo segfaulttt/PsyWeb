@@ -25,7 +25,9 @@ import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.service.SpecialistService;
 import com.psyweb.user.domain.User;
+import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.exception.InvalidUserStateException;
 import com.psyweb.user.service.UserService;
 
 import jakarta.transaction.Transactional;
@@ -77,6 +79,9 @@ public class BookingService {
 			throw new InvalidReservationStateException("Reservation must have status 'ACTIVE'");
 		}
 		User client = userService.getActiveUser(clientId);
+		if (!client.getRole().equals(UserRole.CLIENT)) {
+			throw new InvalidUserStateException("Client must have status 'CLIENT'");
+		}
 		AvailabilitySlot slot = slotService.confirmBooking(reservation.getSlotId());
 		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());
 		reservation.confirm(now);

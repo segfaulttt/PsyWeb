@@ -20,6 +20,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
@@ -38,12 +39,12 @@ public class Booking {
 	@JoinColumn(name = "specialist_id", nullable = false)
 	private Specialist specialist;
 	
-	@OneToOne(fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "slot_id", nullable = false)
 	private AvailabilitySlot slot;
 	
 	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "reservation_id")
+	@JoinColumn(name = "reservation_id", nullable = false, unique = true)
 	private Reservation reservation;
 	
 	@Column(name = "status", nullable = false)

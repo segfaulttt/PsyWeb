@@ -159,13 +159,13 @@ public class Reservation {
 		if (this.client == client) {
 			return true;
 		}
-		return client != null && client.getId() != null && this.getClientId() == client.getId();
+		return client != null && client.getId() != null && this.getClientId().equals(client.getId());
 	}
 
 	public boolean belongsToSlot(AvailabilitySlot slot) {
 		if (this.slot == slot) {
 			return true;
 		}
-		return slot != null && slot.getId() != null && this.getSlotId() == slot.getId();
+		return slot != null && slot.getId() != null && this.getSlotId().equals(slot.getId());
 	}
 }

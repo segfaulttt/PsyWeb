@@ -273,11 +273,118 @@ public class BookingRepositoryIntegrationTest extends PostgreSQLIntegrationTest 
 				.saveAndFlush(new Booking(client, specialist, slot, reservation, bookingCreatedAt));
 
 		Long bookingId = booking.getId();
-		
+
 		assertThrows(DataIntegrityViolationException.class, () -> jdbcTemplate.update("""
 				UPDATE bookings
 				SET cancelled_at = ?
 				WHERE id = ?
 				""", cancelledAt, bookingId));
+	}
+
+	@Test
+	public void shouldAllowRebookingSameSlotAfterPreviousBookingCancellation() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime startTime = now.plusDays(1);
+
+		User specialistUser = userRepository.saveAndFlush(
+				new User("specialist-rebooking@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "Rebooking", Duration.ZERO, Duration.ZERO);
+
+		specialist.approve();
+		specialist = specialistRepository.saveAndFlush(specialist);
+
+		User client = userRepository.saveAndFlush(
+				new User("client-rebooking@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+
+		Reservation firstReservation = new Reservation(client, slot, now, now.plusMinutes(10));
+
+		firstReservation.confirm(now.plusMinutes(1));
+		firstReservation = reservationRepository.saveAndFlush(firstReservation);
+
+		slot.confirmBooking();
+		slot = slotRepository.saveAndFlush(slot);
+
+		Booking firstBooking = new Booking(client, specialist, slot, firstReservation, now.plusMinutes(1));
+
+		firstBooking.cancel(now.plusMinutes(2), CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
+
+		firstBooking = bookingRepository.saveAndFlush(firstBooking);
+
+		slot.releaseBooking();
+		slotRepository.saveAndFlush(slot);
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+		Reservation secondReservation = new Reservation(client, slot, now.plusMinutes(3), now.plusMinutes(13));
+
+		secondReservation.confirm(now.plusMinutes(4));
+		secondReservation = reservationRepository.saveAndFlush(secondReservation);
+
+		slot.confirmBooking();
+		slotRepository.saveAndFlush(slot);
+
+		Booking secondBooking = new Booking(client, specialist, slot, secondReservation, now.plusMinutes(4));
+
+		secondBooking = bookingRepository.saveAndFlush(secondBooking);
+
+		List<Booking> bookings = bookingRepository.findBySlot_Id(slot.getId());
+
+		assertEquals(2, bookings.size());
+		assertEquals(BookingStatus.CANCELLED, firstBooking.getStatus());
+		assertEquals(BookingStatus.CONFIRMED, secondBooking.getStatus());
+		assertEquals(slot.getId(), firstBooking.getSlotId());
+		assertEquals(slot.getId(), secondBooking.getSlotId());
+	}
+
+	@Test
+	public void shouldRejectSecondBookingForSameReservation() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime startTime = now.plusDays(1);
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-unique@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "ReservationUnique", Duration.ZERO,
+				Duration.ZERO);
+
+		specialist.approve();
+		specialist = specialistRepository.saveAndFlush(specialist);
+
+		User client = userRepository.saveAndFlush(
+				new User("client-reservation-unique@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+		slot = slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = new Reservation(client, slot, now, now.plusMinutes(10));
+
+		reservation.confirm(now.plusMinutes(1));
+		reservation = reservationRepository.saveAndFlush(reservation);
+
+		slot.confirmBooking();
+		slotRepository.saveAndFlush(slot);
+
+		Booking firstBooking = new Booking(client, specialist, slot, reservation, now.plusMinutes(1));
+
+		firstBooking.cancel(now.plusMinutes(2), CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
+
+		bookingRepository.saveAndFlush(firstBooking);
+
+		slot.releaseBooking();
+		slotRepository.saveAndFlush(slot);
+
+		Booking secondBooking = new Booking(client, specialist, slot, reservation, now.plusMinutes(3));
+
+		assertThrows(DataIntegrityViolationException.class, () -> bookingRepository.saveAndFlush(secondBooking));
 	}
 }

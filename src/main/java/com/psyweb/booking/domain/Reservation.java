@@ -152,4 +152,12 @@ public class Reservation {
 
 	    status = ReservationStatus.CONFIRMED;
 	}
+	
+	public boolean belongsToClient(User client) {
+		return this.client == client;
+	}
+	
+	public boolean belongsToSlot(AvailabilitySlot slot) {
+		return this.slot == slot;
+	}
 }

@@ -20,7 +20,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
@@ -30,44 +29,46 @@ public class Booking {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "client_id", nullable = false)
 	private User client;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "specialist_id", nullable = false)
 	private Specialist specialist;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "slot_id", nullable = false)
 	private AvailabilitySlot slot;
-	
+
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "reservation_id", nullable = false, unique = true)
 	private Reservation reservation;
-	
+
 	@Column(name = "status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private BookingStatus status;
-	
+
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
-	
+
 	@Column(name = "cancelled_at")
 	private LocalDateTime cancelledAt;
-	
+
 	@Column(name = "cancellation_initiator")
 	@Enumerated(EnumType.STRING)
 	private CancellationInitiator initiator;
-	
+
 	@Column(name = "cancellation_reason")
 	@Enumerated(EnumType.STRING)
 	private CancellationReason reason;
-	
-	protected Booking() {}
-	
-	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation, LocalDateTime createdAt) {
+
+	protected Booking() {
+	}
+
+	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation,
+			LocalDateTime createdAt) {
 		if (client == null) {
 			throw new InvalidBookingDataException("Client cannot be blank");
 		}
@@ -83,6 +84,15 @@ public class Booking {
 		if (createdAt == null) {
 			throw new InvalidBookingDataException("Creation time cannot be blank");
 		}
+		if (!reservation.belongsToClient(client)) {
+			throw new InvalidBookingDataException("Booking client does not match reservation client");
+		}
+		if (!reservation.belongsToSlot(slot)) {
+			throw new InvalidBookingDataException("Booking slot does not match reservation slot");
+		}
+		if (!slot.belongsToSpecialist(specialist)) {
+			throw new InvalidBookingDataException("Booking specialist does not match slot specialist");
+		}
 		this.createdAt = createdAt;
 		this.client = client;
 		this.specialist = specialist;
@@ -90,59 +100,60 @@ public class Booking {
 		this.reservation = reservation;
 		this.status = BookingStatus.CONFIRMED;
 	}
-	
-	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+
+	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
+			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidBookingDataException("Cancellation metadata cannot be null");
 		}
 	}
-	
+
 	public Long getId() {
 		return this.id;
 	}
-	
+
 	public Long getClientId() {
 		return this.client.getId();
 	}
-	
+
 	public Long getSpecialistId() {
 		return this.specialist.getId();
 	}
-	
+
 	public Long getSlotId() {
 		return this.slot.getId();
 	}
-	
+
 	public Long getReservationId() {
 		return this.reservation.getId();
 	}
-	
+
 	public BookingStatus getStatus() {
 		return this.status;
 	}
-	
+
 	public LocalDateTime getCreatedAt() {
 		return this.createdAt;
 	}
-	
+
 	public LocalDateTime getCancelledAt() {
 		return this.cancelledAt;
 	}
-	
+
 	public CancellationInitiator getCancellationInitiator() {
 		return this.initiator;
 	}
-	
+
 	public CancellationReason getCancellationReason() {
 		return this.reason;
 	}
-	
+
 	public void cancel(LocalDateTime time, CancellationInitiator initiator, CancellationReason reason) {
 		if (this.status != BookingStatus.CONFIRMED) {
 			throw new InvalidBookingStateException("Cannot cancel booking");
 		}
 		validateCancellation(time, initiator, reason);
-		
+
 		if (!time.isAfter(this.createdAt)) {
 			throw new InvalidBookingDataException("Invalid cancellation time");
 		}
@@ -151,18 +162,18 @@ public class Booking {
 		this.initiator = initiator;
 		this.reason = reason;
 	}
-	
+
 	public void complete() {
 		if (this.status != BookingStatus.CONFIRMED) {
 			throw new InvalidBookingStateException("Only confirmed booking can be completed");
 		}
 		this.status = BookingStatus.COMPLETED;
 	}
-	
+
 	public void markNoShow() {
 		if (this.status != BookingStatus.CONFIRMED) {
 			throw new InvalidBookingStateException("Cannot mark no show booking");
 		}
 		this.status = BookingStatus.NO_SHOW;
-	}	
+	}
 }

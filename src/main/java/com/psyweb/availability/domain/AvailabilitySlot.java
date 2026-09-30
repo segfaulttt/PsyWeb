@@ -147,4 +147,8 @@ public class AvailabilitySlot {
 		this.initiator = initiator;
 		this.reason = reason;
 	}
+	
+	public boolean belongsToSpecialist(Specialist specialist) {
+		return this.specialist == specialist;
+	}
 }

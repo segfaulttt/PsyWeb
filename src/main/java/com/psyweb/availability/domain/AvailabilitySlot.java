@@ -149,6 +149,9 @@ public class AvailabilitySlot {
 	}
 	
 	public boolean belongsToSpecialist(Specialist specialist) {
-		return this.specialist == specialist;
+		if (this.specialist == specialist) {
+			return true;
+		}
+		return specialist != null && specialist.getId() != null && this.getSpecialistId() == specialist.getId();
 	}
 }

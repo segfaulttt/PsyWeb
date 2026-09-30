@@ -80,7 +80,7 @@ public class BookingService {
 		}
 		User client = userService.getActiveUser(clientId);
 		if (!client.getRole().equals(UserRole.CLIENT)) {
-			throw new InvalidUserStateException("Client must have status 'CLIENT'");
+			throw new InvalidUserStateException("Client must have role 'CLIENT'");
 		}
 		AvailabilitySlot slot = slotService.confirmBooking(reservation.getSlotId());
 		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());

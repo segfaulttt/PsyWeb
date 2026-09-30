@@ -27,11 +27,11 @@ public class Reservation {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "client_id", nullable = false)
 	private User client;
-	
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "slot_id", nullable = false)
 	private AvailabilitySlot slot;
@@ -45,95 +45,97 @@ public class Reservation {
 
 	@Column(name = "expires_at", nullable = false)
 	private LocalDateTime expiresAt;
-	
+
 	@Column(name = "cancelled_at")
 	private LocalDateTime cancelledAt;
-	
+
 	@Column(name = "cancellation_initiator")
 	@Enumerated(EnumType.STRING)
 	private CancellationInitiator initiator;
-	
+
 	@Column(name = "cancellation_reason")
 	@Enumerated(EnumType.STRING)
 	private CancellationReason reason;
-	
-	protected Reservation() {}
-	
+
+	protected Reservation() {
+	}
+
 	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
 		if (client == null) {
-	        throw new InvalidReservationDataException("Incorrect client");
-	    }
-	    if (slot == null) {
-	        throw new InvalidReservationDataException("Slot cannot be null");
-	    }
-	    if (createdAt == null) {
-	        throw new InvalidReservationDataException("Created time cannot be null");
-	    }
-	    if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
-	        throw new InvalidReservationDataException("Incorrect expires time");
-	    }
+			throw new InvalidReservationDataException("Incorrect client");
+		}
+		if (slot == null) {
+			throw new InvalidReservationDataException("Slot cannot be null");
+		}
+		if (createdAt == null) {
+			throw new InvalidReservationDataException("Created time cannot be null");
+		}
+		if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
+			throw new InvalidReservationDataException("Incorrect expires time");
+		}
 
-	    this.client = client;
-	    this.slot = slot;
-	    this.status = ReservationStatus.ACTIVE;
-	    this.createdAt = createdAt;
-	    this.expiresAt = expiresAt;
+		this.client = client;
+		this.slot = slot;
+		this.status = ReservationStatus.ACTIVE;
+		this.createdAt = createdAt;
+		this.expiresAt = expiresAt;
 	}
-	
-	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+
+	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
+			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidReservationDataException("Cancellation metadata cannot be null");
 		}
 	}
-	
+
 	public Long getId() {
 		return this.id;
 	}
-	
+
 	public Long getClientId() {
 		return this.client.getId();
 	}
-	
+
 	public Long getSlotId() {
 		return this.slot.getId();
 	}
-	
+
 	public ReservationStatus getStatus() {
 		return this.status;
 	}
-	
+
 	public LocalDateTime getCreatedAt() {
 		return this.createdAt;
 	}
-	
+
 	public LocalDateTime getExpiresAt() {
 		return this.expiresAt;
 	}
-	
+
 	public LocalDateTime getCancelledAt() {
 		return this.cancelledAt;
 	}
-	
+
 	public CancellationInitiator getCancellationInitiator() {
 		return this.initiator;
 	}
-	
+
 	public CancellationReason getCancellationReason() {
 		return this.reason;
 	}
-	
-	public void expire(LocalDateTime now) {
-	    if (!isExpired(now)) {
-	        throw new InvalidReservationStateException("Cannot mark expired");
-	    }
 
-	    status = ReservationStatus.EXPIRED;
+	public void expire(LocalDateTime now) {
+		if (!isExpired(now)) {
+			throw new InvalidReservationStateException("Cannot mark expired");
+		}
+
+		status = ReservationStatus.EXPIRED;
 	}
-	
+
 	public boolean isExpired(LocalDateTime now) {
-	    return status == ReservationStatus.ACTIVE && !expiresAt.isAfter(now);
+		return status == ReservationStatus.ACTIVE && !expiresAt.isAfter(now);
 	}
-	
+
 	public void cancel(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		validateCancellation(cancelledAt, initiator, reason);
 		if (this.status != ReservationStatus.ACTIVE) {
@@ -144,12 +146,26 @@ public class Reservation {
 		this.initiator = initiator;
 		this.reason = reason;
 	}
-	
-	public void confirm(LocalDateTime now) {
-	    if (status != ReservationStatus.ACTIVE || !expiresAt.isAfter(now)) {
-	        throw new InvalidReservationStateException("Cannot mark confirm");
-	    }
 
-	    status = ReservationStatus.CONFIRMED;
+	public void confirm(LocalDateTime now) {
+		if (status != ReservationStatus.ACTIVE || !expiresAt.isAfter(now)) {
+			throw new InvalidReservationStateException("Cannot mark confirm");
+		}
+
+		status = ReservationStatus.CONFIRMED;
+	}
+
+	public boolean belongsToClient(User client) {
+		if (this.client == client) {
+			return true;
+		}
+		return client != null && client.getId() != null && this.getClientId().equals(client.getId());
+	}
+
+	public boolean belongsToSlot(AvailabilitySlot slot) {
+		if (this.slot == slot) {
+			return true;
+		}
+		return slot != null && slot.getId() != null && this.getSlotId().equals(slot.getId());
 	}
 }

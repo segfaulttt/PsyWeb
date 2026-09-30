@@ -42,6 +42,7 @@ import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.exception.InvalidUserStateException;
 import com.psyweb.user.service.UserService;
 
 @ExtendWith(MockitoExtension.class)
@@ -406,5 +407,29 @@ public class BookingServiceTest {
 		assertEquals("SPECIALIST_INVALID_DATA", exception.code());
 		assertEquals("Incorrect specialist id", exception.getMessage());
 		verifyNoInteractions(bookingRepository);
+	}
+
+	@Test
+	void shouldRejectConfirmationWhenUserIsNotClient() {
+		Long reservationId = 100L;
+		Long clientId = 1L;
+
+		User nonClientUser = new User("specialist-client@example.com", "password", UserRole.SPECIALIST,
+				UserStatus.ACTIVE);
+
+		ReflectionTestUtils.setField(nonClientUser, "id", clientId);
+
+		when(reservationService.getReservationForUpdate(reservationId)).thenReturn(reservation);
+
+		when(userService.getActiveUser(clientId)).thenReturn(nonClientUser);
+
+		InvalidUserStateException exception = assertThrows(InvalidUserStateException.class,
+				() -> bookingService.confirmReservation(reservationId, clientId));
+
+		assertEquals("USER_INVALID_STATE", exception.code());
+		assertEquals("Client must have role 'CLIENT'", exception.getMessage());
+
+		verifyNoInteractions(slotService, specialistService);
+		verify(bookingRepository, never()).save(any());
 	}
 }

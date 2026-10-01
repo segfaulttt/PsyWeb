@@ -23,20 +23,18 @@ public class AvailabilitySlotService {
 	private final SpecialistService specialistService;
 	private final Clock clock;
 
-	public AvailabilitySlotService(
-	        AvailabilitySlotRepository slotRepository,
-	        SpecialistService specialistService,
-	        Clock clock) {
-	    this.slotRepository = slotRepository;
-	    this.specialistService = specialistService;
-	    this.clock = clock;
+	public AvailabilitySlotService(AvailabilitySlotRepository slotRepository, SpecialistService specialistService,
+			Clock clock) {
+		this.slotRepository = slotRepository;
+		this.specialistService = specialistService;
+		this.clock = clock;
 	}
-	
+
 	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
 		if (specialistId == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist id cannot be null");
 		}
-		
+
 		if (startTime == null || endTime == null) {
 			throw new InvalidAvailabilitySlotDataException("Time cannot be null");
 		}
@@ -46,58 +44,66 @@ public class AvailabilitySlotService {
 		if (!startTime.isBefore(endTime)) {
 			throw new InvalidAvailabilitySlotDataException("Start must be before end");
 		}
-		
+
 		Specialist specialist = specialistService.getEligibleSpecialist(specialistId);
-		
+
 		if (slotRepository.existsOverlappingSlot(specialistId, startTime, endTime)) {
 			throw new IllegalArgumentException("Overlap");
 		}
-		
+
 		AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
-		
+
 		return slotRepository.save(newSlot);
 	}
-	
+
 	public AvailabilitySlot reserveSlot(Long slotId) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
-		
+
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
 		slot.reserve();
 		return slotRepository.save(slot);
 	}
-	
+
 	public AvailabilitySlot releaseReservation(Long slotId) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
-		
+
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
 		slot.releaseReservation();
 		return slotRepository.save(slot);
 	}
-	
+
 	public AvailabilitySlot releaseBooking(Long slotId) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
-		
+
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
 		slot.releaseBooking();
 		return slotRepository.save(slot);
 	}
-	
+
 	public List<AvailabilitySlot> findBySpecialist(Long specialistId) {
 		return slotRepository.findBySpecialistId(specialistId);
-	}	
-	
+	}
+
+	public AvailabilitySlot findSlotById(Long slotId) {
+		if (slotId == null) {
+			throw new InvalidAvailabilitySlotDataException("Slot id cannot be null");
+		}
+		return slotRepository.findById(slotId)
+				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
+	}
+
 	public AvailabilitySlot getFreeSlot(Long id) {
 		if (id == null) {
 			throw new InvalidAvailabilitySlotDataException("Invalid id");
@@ -109,24 +115,25 @@ public class AvailabilitySlotService {
 		}
 		return slot;
 	}
-	
+
 	public AvailabilitySlot confirmBooking(Long slotId) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
-		
+
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
 		slot.confirmBooking();
 		return slotRepository.save(slot);
 	}
-	
-	public AvailabilitySlot cancelSlot(Long slotId, LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+
+	public AvailabilitySlot cancelSlot(Long slotId, LocalDateTime cancelledAt, CancellationInitiator initiator,
+			CancellationReason reason) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot ID cannot be null");
 		}
-		
+
 		AvailabilitySlot slot = slotRepository.findById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 

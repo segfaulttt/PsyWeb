@@ -17,7 +17,6 @@ import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import static org.mockito.Mockito.doReturn;
@@ -28,7 +27,6 @@ import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
-import com.psyweb.booking.exception.ActiveReservationAlreadyExistsException;
 import com.psyweb.booking.repository.ReservationRepository;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
@@ -60,8 +58,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 	private ReservationService reservationService;
 
 	@Test
-	public void shouldTranslateDatabaseConflictWhenConcurrentReservationsTargetSameSlot()
-			throws InterruptedException, TimeoutException {
+	public void shouldAllowOnlyOneConcurrentReservationForSameSlot() throws InterruptedException, TimeoutException {
 		User specialistUser = userRepository.saveAndFlush(
 				new User("specialist@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -98,17 +95,23 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 					successfulAttempts++;
 				} catch (ExecutionException e) {
 					Throwable cause = e.getCause();
-					ActiveReservationAlreadyExistsException conflictException = assertInstanceOf(
-							ActiveReservationAlreadyExistsException.class, cause);
+					InvalidAvailabilitySlotStateException conflictException = assertInstanceOf(
+							InvalidAvailabilitySlotStateException.class, cause);
 
-					assertEquals("ACTIVE_RESERVATION_ALREADY_EXISTS", conflictException.code());
-					assertEquals("Slot is already reserved", conflictException.getMessage());
-					assertInstanceOf(DataIntegrityViolationException.class, conflictException.getCause());
+					assertEquals("Cannot reserve slot with status RESERVED", conflictException.getMessage());
 					failedAttempts++;
 				}
 			}
 			assertEquals(1, successfulAttempts);
 			assertEquals(1, failedAttempts);
+
+			List<Reservation> reservations = reservationRepository.findBySlot_IdAndStatus(slot.getId(),
+					ReservationStatus.ACTIVE);
+
+			AvailabilitySlot savedSlot = slotRepository.findById(slot.getId()).orElseThrow();
+
+			assertEquals(1, reservations.size());
+			assertEquals(AvailabilityStatus.RESERVED, savedSlot.getAvailabilityStatus());
 		} finally {
 			executor.shutdownNow();
 		}

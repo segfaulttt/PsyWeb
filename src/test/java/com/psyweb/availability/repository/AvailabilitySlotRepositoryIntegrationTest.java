@@ -1,6 +1,7 @@
 package com.psyweb.availability.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Clock;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
+import com.psyweb.availability.service.AvailabilitySlotService;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
@@ -48,6 +50,9 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Autowired
 	AvailabilitySlotRepository slotRepository;
+
+	@Autowired
+	private AvailabilitySlotService slotService;
 
 	@Test
 	public void shouldPersistAvailabilitySlotCancellationMetadata() {
@@ -102,5 +107,35 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 				SET cancelled_at = ?
 				WHERE id = ?
 				""", cancelledAt, slotId));
+	}
+
+	@Test
+	void shouldAllowCreatingNewSlotForCancelledTime() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime startTime = now.plusDays(1);
+		LocalDateTime endTime = startTime.plusHours(1);
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-reopen-slot@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "Reopen", Duration.ZERO, Duration.ZERO);
+
+		specialist.approve();
+		specialist = specialistRepository.saveAndFlush(specialist);
+
+		AvailabilitySlot firstSlot = slotService.createSlot(specialist.getId(), startTime, endTime);
+
+		slotService.cancelSlot(firstSlot.getId(), now, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
+
+		AvailabilitySlot reopenedSlot = slotService.createSlot(specialist.getId(), startTime, endTime);
+
+		AvailabilitySlot cancelledSlot = slotRepository.findById(firstSlot.getId()).orElseThrow();
+
+		assertEquals(AvailabilityStatus.CANCELLED, cancelledSlot.getAvailabilityStatus());
+
+		assertEquals(AvailabilityStatus.FREE, reopenedSlot.getAvailabilityStatus());
+
+		assertNotEquals(firstSlot.getId(), reopenedSlot.getId());
 	}
 }

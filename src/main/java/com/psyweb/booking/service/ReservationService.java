@@ -184,16 +184,4 @@ public class ReservationService {
 		cancelReservation(reservation, cancelledAt, CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 	}
-	
-	public void cancelConfirmedReservationForSlotRemoval(Long slotId, LocalDateTime cancelledAt) {
-		if (slotId == null) {
-			throw new InvalidReservationDataException("Slot id cannot be null");
-		}
-
-		Reservation reservation = reservationRepository.findConfirmedForUpdateBySlotId(slotId)
-				.orElseThrow(() -> new ReservationNotFoundException("Confirmed reservation for slot not found"));
-
-		cancelReservation(reservation, cancelledAt, CancellationInitiator.SPECIALIST,
-				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
-	}
 }

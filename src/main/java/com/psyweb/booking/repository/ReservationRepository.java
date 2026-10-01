@@ -32,15 +32,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>{
 			""")
 	Optional<Reservation> findActiveForUpdateBySlotId(@Param("slotId") Long slotId);
 	
-	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("""
-			SELECT r
-			FROM Reservation r
-			WHERE r.slot.id = :slotId
-			AND r.status = com.psyweb.booking.domain.ReservationStatus.CONFIRMED
-			""")
-	Optional<Reservation> findConfirmedForUpdateBySlotId(@Param("slotId") Long slotId);
-	
 	@Query(
 			"SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +
 			"FROM Reservation r " +

@@ -3,6 +3,8 @@ package com.psyweb.booking.service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
+import org.springframework.stereotype.Service;
+
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
@@ -13,6 +15,7 @@ import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 
 import jakarta.transaction.Transactional;
 
+@Service
 public class SchedulingService {
 	private final AvailabilitySlotService slotService;
 	private final BookingService bookingService;
@@ -47,9 +50,7 @@ public class SchedulingService {
 			reservationService.cancelActiveReservationForSlotRemoval(slotId, now);
 			break;
 		case BOOKED:
-			reservationService.cancelConfirmedReservationForSlotRemoval(slotId, now);
-			bookingService.cancelBooking(specialistId, now, CancellationInitiator.SPECIALIST,
-				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
+			bookingService.cancelConfirmedBookingForSlotRemoval(slotId, now);
 		case CANCELLED:
 			throw new InvalidAvailabilitySlotStateException("Slot is already cancelled");
 		}

@@ -160,7 +160,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 		Reservation reservation = reservationRepository
 				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(5)));
 
-		reservationService.cancelReservation(reservation.getId(), now, CancellationInitiator.CLIENT,
+		reservationService.cancelReservationByClient(reservation.getId(), client.getId(), now,
 				CancellationReason.CLIENT_REQUEST);
 
 		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();
@@ -229,7 +229,7 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(5)));
 
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
-				() -> reservationService.cancelReservation(reservation.getId(), now, CancellationInitiator.CLIENT,
+				() -> reservationService.cancelReservationByClient(reservation.getId(), client.getId(), now,
 						CancellationReason.CLIENT_REQUEST));
 
 		Reservation result = reservationRepository.findById(reservation.getId()).orElseThrow();

@@ -20,6 +20,7 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
 	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " +
 			"FROM AvailabilitySlot s " +
 			"WHERE s.specialist.id = :specialistId " +
+			"AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED " +
 			"AND s.startTime < :newEnd " +
 			"AND s.endTime > :newStart")
 	public boolean existsOverlappingSlot(

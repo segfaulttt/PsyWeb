@@ -57,8 +57,11 @@ public class ReservationService {
 
 	@Transactional
 	public Reservation createReservation(Long clientId, Long slotId) {
-		if (clientId == null || slotId == null) {
-			throw new InvalidReservationDataException("Illegal argument");
+		if (clientId == null ) {
+			throw new InvalidReservationDataException("Client id cannot be null");
+		}
+		if (slotId == null) {
+			throw new InvalidReservationDataException("Slot id cannot be null");
 		}
 		if (reservationRepository.existsBySlotIdAndStatus(slotId, ReservationStatus.ACTIVE)) {
 			throw new ActiveReservationAlreadyExistsException("Slot is already reserved");
@@ -105,7 +108,7 @@ public class ReservationService {
 			throw new InvalidReservationDataException("Client id cannot be null");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
-		if (reservation.getClientId() != clientId) {
+		if (!reservation.getClientId().equals(clientId)) {
 			throw new ReservationOwnershipException("Reservation does not belong to this client");
 		}
 		cancelReservation(reservation, cancelledAt, CancellationInitiator.CLIENT, reason);

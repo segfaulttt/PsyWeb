@@ -70,11 +70,11 @@ public class ReservationService {
 		if (!user.getRole().equals(UserRole.CLIENT)) {
 			throw new InvalidUserStateException("Client must have role 'CLIENT'");
 		}
-		AvailabilitySlot slot = slotService.reserveSlot(slotId);
-		LocalDateTime now = LocalDateTime.now(clock);
-		Reservation reservation = new Reservation(user, slot, now, now.plus(reservationProperties.ttl()));
 
 		try {
+			AvailabilitySlot slot = slotService.reserveSlot(slotId);
+			LocalDateTime now = LocalDateTime.now(clock);
+			Reservation reservation = new Reservation(user, slot, now, now.plus(reservationProperties.ttl()));
 			return reservationRepository.saveAndFlush(reservation);
 		} catch (DataIntegrityViolationException e) {
 			if (isActiveReservationConstraintViolation(e)) {

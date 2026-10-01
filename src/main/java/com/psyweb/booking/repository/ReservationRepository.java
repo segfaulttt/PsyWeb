@@ -15,13 +15,13 @@ import com.psyweb.booking.domain.ReservationStatus;
 import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long>{
-	List<Reservation> findBySlotId(Long slotId);
+	List<Reservation> findBySlot_Id(Long slotId);
 	
 	List<Reservation> findByClientId(Long clientId);
 	
 	List<Reservation> findByStatus(ReservationStatus status);
 	
-	List<Reservation> findBySlotIdAndStatus(Long slotId, ReservationStatus status);
+	List<Reservation> findBySlot_IdAndStatus(Long slotId, ReservationStatus status);
 	
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("""

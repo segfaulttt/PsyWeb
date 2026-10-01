@@ -35,18 +35,15 @@ import jakarta.transaction.Transactional;
 @Service
 public class BookingService {
 	private final BookingRepository bookingRepository;
-    private final UserService userService;
-    private final SpecialistService specialistService;
-    private final AvailabilitySlotService slotService;
-    private final ReservationService reservationService;
-    private final Clock clock;
+	private final UserService userService;
+	private final SpecialistService specialistService;
+	private final AvailabilitySlotService slotService;
+	private final ReservationService reservationService;
+	private final Clock clock;
 
-	public BookingService(BookingRepository bookingRepository,  
-			UserService userService, 
-			SpecialistService specialistService,
-			AvailabilitySlotService slotService,
-			ReservationService reservationService,
-			Clock clock) {
+	public BookingService(BookingRepository bookingRepository, UserService userService,
+			SpecialistService specialistService, AvailabilitySlotService slotService,
+			ReservationService reservationService, Clock clock) {
 		this.bookingRepository = bookingRepository;
 		this.userService = userService;
 		this.specialistService = specialistService;
@@ -54,20 +51,20 @@ public class BookingService {
 		this.reservationService = reservationService;
 		this.clock = clock;
 	}
-	
+
 	@Transactional(dontRollbackOn = ReservationExpiredException.class)
-	public Booking confirmReservation(Long reservationId, Long clientId) {  
+	public Booking confirmReservation(Long reservationId, Long clientId) {
 		if (reservationId == null) {
 			throw new InvalidReservationDataException("Incorrect reservation id");
 		}
-		
+
 		if (clientId == null) {
 			throw new InvalidUserDataException("Incorrect client id");
 		}
-		
+
 		Reservation reservation = reservationService.getReservationForUpdate(reservationId);
-	    LocalDateTime now = LocalDateTime.now(clock);
-		
+		LocalDateTime now = LocalDateTime.now(clock);
+
 		if (!reservation.getClientId().equals(clientId)) {
 			throw new ReservationOwnershipException("Reservation does not belong to this client");
 		}
@@ -86,21 +83,22 @@ public class BookingService {
 		Specialist specialist = specialistService.getEligibleSpecialist(slot.getSpecialistId());
 		reservation.confirm(now);
 		Booking booking = new Booking(client, specialist, slot, reservation, now);
-		
+
 		return bookingRepository.save(booking);
 	}
-	
+
 	@Transactional
-	public void cancelBooking(Long bookingId, LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+	public void cancelBooking(Long bookingId, LocalDateTime cancelledAt, CancellationInitiator initiator,
+			CancellationReason reason) {
 		if (bookingId == null) {
 			throw new InvalidBookingDataException("Incorrect id");
 		}
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 		booking.cancel(cancelledAt, initiator, reason);
-	    slotService.releaseBooking(booking.getSlotId());
+		slotService.releaseBooking(booking.getSlotId());
 	}
-	
+
 	public List<Booking> getClientBookings(Long clientId, BookingStatus status) {
 		if (clientId == null) {
 			throw new InvalidUserDataException("Incorrect client id");
@@ -109,9 +107,9 @@ public class BookingService {
 			return bookingRepository.findByClient_Id(clientId);
 		}
 
- 		return bookingRepository.findByClient_IdAndStatus(clientId, status);
+		return bookingRepository.findByClient_IdAndStatus(clientId, status);
 	}
-	
+
 	public List<Booking> getSpecialistBookings(Long specialistId, BookingStatus status) {
 		if (specialistId == null) {
 			throw new InvalidSpecialistDataException("Incorrect specialist id");
@@ -119,7 +117,20 @@ public class BookingService {
 		if (status == null) {
 			return bookingRepository.findBySpecialist_Id(specialistId);
 		}
-		
+
 		return bookingRepository.findBySpecialist_IdAndStatus(specialistId, status);
+	}
+
+	public void cancelConfirmedBookingForSlotRemoval(Long slotId, LocalDateTime now) {
+		if (slotId == null) {
+			throw new InvalidBookingDataException("Slot id cannot be null");
+		}
+		if (now == null) {
+			throw new InvalidBookingDataException("Time cannot be null");
+		}
+		Booking booking = bookingRepository.findConfirmedForUpdateBySlotId(slotId)
+				.orElseThrow(() -> new BookingNotFoundException("Confirmed booking not found"));
+		cancelBooking(booking.getId(), now, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 	}
 }

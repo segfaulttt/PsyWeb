@@ -62,7 +62,7 @@ public class Reservation {
 
 	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
 		if (client == null) {
-			throw new InvalidReservationDataException("Incorrect client");
+			throw new InvalidReservationDataException("Client cannot be null");
 		}
 		if (slot == null) {
 			throw new InvalidReservationDataException("Slot cannot be null");
@@ -73,7 +73,6 @@ public class Reservation {
 		if (expiresAt == null || !expiresAt.isAfter(createdAt)) {
 			throw new InvalidReservationDataException("Incorrect expires time");
 		}
-
 		this.client = client;
 		this.slot = slot;
 		this.status = ReservationStatus.ACTIVE;

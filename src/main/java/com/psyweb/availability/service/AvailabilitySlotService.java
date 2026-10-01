@@ -140,4 +140,13 @@ public class AvailabilitySlotService {
 		slot.cancel(cancelledAt, initiator, reason);
 		return slotRepository.save(slot);
 	}
+
+	public AvailabilitySlot findSlotForUpdate(Long slotId) {
+		if (slotId == null) {
+			throw new InvalidAvailabilitySlotDataException("Slot id cannot be null");
+		}
+
+		return slotRepository.findForUpdateById(slotId)
+				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
+	}
 }

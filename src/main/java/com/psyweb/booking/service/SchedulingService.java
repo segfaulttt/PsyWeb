@@ -38,7 +38,7 @@ public class SchedulingService {
 		if (specialistId == null) {
 			throw new InvalidSpecialistDataException("Specialist id cannot be null");
 		}
-		AvailabilitySlot slot = slotService.findSlotById(slotId);
+		AvailabilitySlot slot = slotService.findSlotForUpdate(slotId);
 		if (!slot.getSpecialistId().equals(specialistId)) {
 			throw new InvalidAvailabilitySlotStateException("Slot does not belong to this specialist");
 		}
@@ -51,6 +51,7 @@ public class SchedulingService {
 			break;
 		case BOOKED:
 			bookingService.cancelConfirmedBookingForSlotRemoval(slotId, now);
+			break;
 		case CANCELLED:
 			throw new InvalidAvailabilitySlotStateException("Slot is already cancelled");
 		}

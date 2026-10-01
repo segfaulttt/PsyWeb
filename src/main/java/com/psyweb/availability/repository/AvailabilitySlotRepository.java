@@ -2,12 +2,16 @@ package com.psyweb.availability.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
+
+import jakarta.persistence.LockModeType;
 
 public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long>{
 	
@@ -24,4 +28,6 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
 			@Param("newEnd")LocalDateTime newEnd
 			);
 	
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<AvailabilitySlot> findForUpdateById(Long slotId);
 }

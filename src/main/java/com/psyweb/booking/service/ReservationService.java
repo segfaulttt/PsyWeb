@@ -57,7 +57,7 @@ public class ReservationService {
 
 	@Transactional
 	public Reservation createReservation(Long clientId, Long slotId) {
-		if (clientId == null ) {
+		if (clientId == null) {
 			throw new InvalidReservationDataException("Client id cannot be null");
 		}
 		if (slotId == null) {
@@ -103,7 +103,7 @@ public class ReservationService {
 		if (reservationId == null) {
 			throw new InvalidReservationDataException("Reservation id cannot be null");
 		}
-		
+
 		if (clientId == null) {
 			throw new InvalidReservationDataException("Client id cannot be null");
 		}
@@ -171,5 +171,29 @@ public class ReservationService {
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
 		return reservation;
+	}
+
+	public void cancelActiveReservationForSlotRemoval(Long slotId, LocalDateTime cancelledAt) {
+		if (slotId == null) {
+			throw new InvalidReservationDataException("Slot id cannot be null");
+		}
+
+		Reservation reservation = reservationRepository.findActiveForUpdateBySlotId(slotId)
+				.orElseThrow(() -> new ReservationNotFoundException("Active reservation for slot not found"));
+
+		cancelReservation(reservation, cancelledAt, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
+	}
+	
+	public void cancelConfirmedReservationForSlotRemoval(Long slotId, LocalDateTime cancelledAt) {
+		if (slotId == null) {
+			throw new InvalidReservationDataException("Slot id cannot be null");
+		}
+
+		Reservation reservation = reservationRepository.findConfirmedForUpdateBySlotId(slotId)
+				.orElseThrow(() -> new ReservationNotFoundException("Confirmed reservation for slot not found"));
+
+		cancelReservation(reservation, cancelledAt, CancellationInitiator.SPECIALIST,
+				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 	}
 }

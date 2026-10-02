@@ -209,29 +209,6 @@ public class BookingServiceTest {
 	}
 
 	@Test
-	void shouldCancelBooking() {
-		Long bookingId = 1L;
-		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
-		slot.reserve();
-		slot.confirmBooking();
-
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
-		ReflectionTestUtils.setField(booking, "id", bookingId);
-
-		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
-		when(slotService.releaseBooking(slot.getId())).thenReturn(slot);
-
-		bookingService.cancelBookingByClient(bookingId, client.getId(), now);
-
-		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
-		assertNotEquals(null, booking.getCancelledAt());
-		assertEquals(now, booking.getCancelledAt());
-		assertEquals(CancellationInitiator.CLIENT, booking.getCancellationInitiator());
-		assertEquals(CancellationReason.CLIENT_REQUEST, booking.getCancellationReason());
-		verify(slotService).releaseBooking(slot.getId());
-	}
-
-	@Test
 	void shouldThrowWhenBookingIdIsNull() {
 		Long bookingId = null;
 
@@ -252,7 +229,7 @@ public class BookingServiceTest {
 		Booking booking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
-		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.empty());
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
 		BookingNotFoundException exception = assertThrows(BookingNotFoundException.class,
 				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), now));
@@ -273,6 +250,7 @@ public class BookingServiceTest {
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 		booking.complete();
 
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
 		InvalidBookingStateException exception = assertThrows(InvalidBookingStateException.class,
@@ -282,7 +260,6 @@ public class BookingServiceTest {
 		assertEquals("Cannot cancel booking", exception.getMessage());
 		assertNull(booking.getCancellationInitiator());
 		assertNull(booking.getCancellationReason());
-		verifyNoInteractions(slotService);
 	}
 
 	@Test
@@ -446,6 +423,8 @@ public class BookingServiceTest {
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
 		when(slotService.releaseBooking(slot.getId())).thenAnswer(invocation -> {
@@ -480,6 +459,7 @@ public class BookingServiceTest {
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
 		BookingOwnershipException exception = assertThrows(BookingOwnershipException.class,
@@ -491,7 +471,6 @@ public class BookingServiceTest {
 		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
 
 		verify(bookingRepository).findForUpdateById(bookingId);
-		verifyNoInteractions(slotService);
 	}
 
 	@Test

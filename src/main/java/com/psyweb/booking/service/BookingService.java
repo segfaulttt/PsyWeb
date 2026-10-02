@@ -141,6 +141,14 @@ public class BookingService {
 		if (clientId == null) {
 			throw new InvalidBookingDataException("Client id cannot be null");
 		}
+		
+		Booking existingBooking = bookingRepository.findById(bookingId)
+	            .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
+
+	    Long slotId = existingBooking.getSlotId();
+
+	    slotService.findSlotForUpdate(slotId);
+		
 		Booking booking = bookingRepository.findForUpdateById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 		if (!booking.getClientId().equals(clientId)) {

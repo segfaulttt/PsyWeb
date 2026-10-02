@@ -246,15 +246,20 @@ public class BookingServiceTest {
 	void shouldNotReleaseSlotWhenCancelThrowsException() {
 		Long bookingId = 1L;
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
-		Booking booking = new Booking(client, specialist, slot, reservation, now);
+		LocalDateTime cancelledAt = slot.getStartTime().minusSeconds(1);
+
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
+
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 		booking.complete();
 
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+		when(slotService.findSlotForUpdate(slot.getId())).thenReturn(slot);
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
+
 		InvalidBookingStateException exception = assertThrows(InvalidBookingStateException.class,
-				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), now));
+				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), cancelledAt));
 
 		assertEquals("BOOKING_INVALID_STATE", exception.code());
 		assertEquals("Cannot cancel booking", exception.getMessage());
@@ -410,20 +415,23 @@ public class BookingServiceTest {
 	}
 
 	@Test
-	void shouldCancelOwnBookingByClientAndReleaseSlot() {
+	void shouldCancelBookingBeforeSessionStart() {
 		Long bookingId = 1L;
 		Long clientId = client.getId();
+		LocalDateTime cancelledAt = slot.getStartTime().minusMinutes(1);
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+		when(slotService.findSlotForUpdate(slot.getId())).thenReturn(slot);
 
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
@@ -432,16 +440,15 @@ public class BookingServiceTest {
 			return slot;
 		});
 
-		bookingService.cancelBookingByClient(bookingId, clientId, now);
+		bookingService.cancelBookingByClient(bookingId, clientId, cancelledAt);
 
 		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
-		assertEquals(now, booking.getCancelledAt());
+		assertEquals(cancelledAt, booking.getCancelledAt());
 		assertEquals(CancellationInitiator.CLIENT, booking.getCancellationInitiator());
 		assertEquals(CancellationReason.CLIENT_REQUEST, booking.getCancellationReason());
 
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
-		verify(bookingRepository).findForUpdateById(bookingId);
 		verify(slotService).releaseBooking(slot.getId());
 	}
 
@@ -449,21 +456,23 @@ public class BookingServiceTest {
 	void shouldRejectClientCancellationWhenBookingBelongsToAnotherClient() {
 		Long bookingId = 1L;
 		Long anotherClientId = 999L;
+		LocalDateTime cancelledAt = slot.getStartTime().minusSeconds(1);
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
 		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
+		when(slotService.findSlotForUpdate(slot.getId())).thenReturn(slot);
 
 		BookingOwnershipException exception = assertThrows(BookingOwnershipException.class,
-				() -> bookingService.cancelBookingByClient(bookingId, anotherClientId, now));
+				() -> bookingService.cancelBookingByClient(bookingId, anotherClientId, cancelledAt));
 
 		assertEquals("BOOKING_OWNERSHIP_VIOLATION", exception.code());
 		assertEquals("Booking does not belong to this client", exception.getMessage());
@@ -498,5 +507,71 @@ public class BookingServiceTest {
 		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
 		verify(bookingRepository).findConfirmedForUpdateBySlotId(slotId);
 		verifyNoInteractions(slotService);
+	}
+
+	@Test
+	void shouldRejectClientCancellationAtSessionStart() {
+		Long bookingId = 1L;
+		Long clientId = client.getId();
+		LocalDateTime cancelledAt = slot.getStartTime();
+
+		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+
+		slot.reserve();
+		slot.confirmBooking();
+
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+
+		ReflectionTestUtils.setField(booking, "id", bookingId);
+
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+		when(slotService.findSlotForUpdate(slot.getId())).thenReturn(slot);
+
+		assertThrows(InvalidBookingStateException.class,
+				() -> bookingService.cancelBookingByClient(bookingId, clientId, cancelledAt));
+
+		assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+
+		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+
+		assertNull(booking.getCancelledAt());
+		assertNull(booking.getCancellationInitiator());
+		assertNull(booking.getCancellationReason());
+
+		verify(slotService, never()).releaseBooking(anyLong());
+	}
+
+	@Test
+	void shouldRejectClientCancellationAfterSessionStart() {
+		Long bookingId = 1L;
+		Long clientId = client.getId();
+		LocalDateTime cancelledAt = slot.getStartTime().plusMinutes(1);
+
+		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+
+		slot.reserve();
+		slot.confirmBooking();
+
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+
+		ReflectionTestUtils.setField(booking, "id", bookingId);
+
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+		when(slotService.findSlotForUpdate(slot.getId())).thenReturn(slot);
+
+		assertThrows(InvalidBookingStateException.class,
+				() -> bookingService.cancelBookingByClient(bookingId, clientId, cancelledAt));
+
+		assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+
+		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+
+		assertNull(booking.getCancelledAt());
+		assertNull(booking.getCancellationInitiator());
+		assertNull(booking.getCancellationReason());
+
+		verify(slotService, never()).releaseBooking(anyLong());
 	}
 }

@@ -1,6 +1,7 @@
 package com.psyweb.booking.service;
 
 import java.time.Clock;
+//import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +16,7 @@ import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.BookingNotFoundException;
 import com.psyweb.booking.exception.BookingOwnershipException;
 import com.psyweb.booking.exception.InvalidBookingDataException;
+import com.psyweb.booking.exception.InvalidBookingStateException;
 import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
 import com.psyweb.booking.exception.ReservationExpiredException;
@@ -147,8 +149,18 @@ public class BookingService {
 
 	    Long slotId = existingBooking.getSlotId();
 
-	    slotService.findSlotForUpdate(slotId);
+	    AvailabilitySlot slot = slotService.findSlotForUpdate(slotId);
+	    
+//	     for the future: penalties for late cancellation
+	    
+//	    Specialist specialist = specialistService.getSpecialist(existingBooking.getSpecialistId());
+//	    Duration notice = specialist.getClientCancellationNotice();
+//		LocalDateTime deadline = slot.getStartTime().minus(notice);
 		
+		if (!cancelledAt.isBefore(slot.getStartTime())) {
+			throw new InvalidBookingStateException("Booking cannot be cancelled after session has started");
+		}
+	    
 		Booking booking = bookingRepository.findForUpdateById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 		if (!booking.getClientId().equals(clientId)) {

@@ -13,7 +13,7 @@ import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.BookingNotFoundException;
-import com.psyweb.booking.exception.BookingOwnerShipException;
+import com.psyweb.booking.exception.BookingOwnershipException;
 import com.psyweb.booking.exception.InvalidBookingDataException;
 import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
@@ -134,8 +134,7 @@ public class BookingService {
 	}
 
 	@Transactional
-	public void cancelBookingByClient(Long bookingId, Long clientId, LocalDateTime cancelledAt,
-			CancellationReason reason) {
+	public void cancelBookingByClient(Long bookingId, Long clientId, LocalDateTime cancelledAt) {
 		if (bookingId == null) {
 			throw new InvalidBookingDataException("Booking id cannot be null");
 		}
@@ -145,9 +144,9 @@ public class BookingService {
 		Booking booking = bookingRepository.findForUpdateById(bookingId)
 				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 		if (!booking.getClientId().equals(clientId)) {
-			throw new BookingOwnerShipException("Booking does not belong to this client");
+			throw new BookingOwnershipException("Booking does not belong to this client");
 		}
-		cancelBooking(booking, cancelledAt, CancellationInitiator.CLIENT, reason);
+		cancelBooking(booking, cancelledAt, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
 		slotService.releaseBooking(booking.getSlotId());
 	}
 }

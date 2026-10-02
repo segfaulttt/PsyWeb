@@ -13,6 +13,7 @@ import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.BookingNotFoundException;
+import com.psyweb.booking.exception.BookingOwnerShipException;
 import com.psyweb.booking.exception.InvalidBookingDataException;
 import com.psyweb.booking.exception.InvalidReservationDataException;
 import com.psyweb.booking.exception.InvalidReservationStateException;
@@ -86,19 +87,9 @@ public class BookingService {
 
 		return bookingRepository.save(booking);
 	}
-
-	@Transactional
-	public void cancelBooking(Long bookingId, LocalDateTime cancelledAt, CancellationInitiator initiator,
-			CancellationReason reason) {
-		if (bookingId == null) {
-			throw new InvalidBookingDataException("Incorrect id");
-		}
-		Booking booking = bookingRepository.findById(bookingId)
-				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
-		booking.cancel(cancelledAt, initiator, reason);
-		slotService.releaseBooking(booking.getSlotId());
-	}
-
+	
+	// find bookings:
+	
 	public List<Booking> getClientBookings(Long clientId, BookingStatus status) {
 		if (clientId == null) {
 			throw new InvalidUserDataException("Incorrect client id");
@@ -121,6 +112,14 @@ public class BookingService {
 		return bookingRepository.findBySpecialist_IdAndStatus(specialistId, status);
 	}
 
+	// update booking state:
+	
+	private void cancelBooking(Booking booking, LocalDateTime cancelledAt, CancellationInitiator initiator,
+			CancellationReason reason) {
+		booking.cancel(cancelledAt, initiator, reason);
+	}
+	
+	@Transactional
 	public void cancelConfirmedBookingForSlotRemoval(Long slotId, LocalDateTime now) {
 		if (slotId == null) {
 			throw new InvalidBookingDataException("Slot id cannot be null");
@@ -130,7 +129,25 @@ public class BookingService {
 		}
 		Booking booking = bookingRepository.findConfirmedForUpdateBySlotId(slotId)
 				.orElseThrow(() -> new BookingNotFoundException("Confirmed booking not found"));
-		cancelBooking(booking.getId(), now, CancellationInitiator.SPECIALIST,
+		cancelBooking(booking, now, CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
+	}
+
+	@Transactional
+	public void cancelBookingByClient(Long bookingId, Long clientId, LocalDateTime cancelledAt,
+			CancellationReason reason) {
+		if (bookingId == null) {
+			throw new InvalidBookingDataException("Booking id cannot be null");
+		}
+		if (clientId == null) {
+			throw new InvalidBookingDataException("Client id cannot be null");
+		}
+		Booking booking = bookingRepository.findForUpdateById(bookingId)
+				.orElseThrow(() -> new BookingNotFoundException("Booking not found"));
+		if (!booking.getClientId().equals(clientId)) {
+			throw new BookingOwnerShipException("Booking does not belong to this client");
+		}
+		cancelBooking(booking, cancelledAt, CancellationInitiator.CLIENT, reason);
+		slotService.releaseBooking(booking.getSlotId());
 	}
 }

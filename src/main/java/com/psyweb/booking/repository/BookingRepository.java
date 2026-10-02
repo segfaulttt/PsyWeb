@@ -32,4 +32,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
 			AND b.status = com.psyweb.booking.domain.BookingStatus.CONFIRMED
 			""")
 	Optional<Booking> findConfirmedForUpdateBySlotId(@Param("slotId") Long slotId);
+	
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	Optional<Booking> findForUpdateById(Long bookingId);
 }

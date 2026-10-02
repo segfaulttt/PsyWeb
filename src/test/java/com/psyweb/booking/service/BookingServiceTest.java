@@ -26,6 +26,7 @@ import com.psyweb.booking.domain.BookingStatus;
 import com.psyweb.booking.domain.Reservation;
 import com.psyweb.booking.domain.ReservationStatus;
 import com.psyweb.booking.exception.BookingNotFoundException;
+import com.psyweb.booking.exception.BookingOwnershipException;
 import com.psyweb.booking.exception.InvalidBookingDataException;
 import com.psyweb.booking.exception.InvalidBookingStateException;
 import com.psyweb.booking.exception.InvalidReservationDataException;
@@ -208,37 +209,14 @@ public class BookingServiceTest {
 	}
 
 	@Test
-	void shouldCancelBooking() {
-		Long bookingId = 1L;
-		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
-		slot.reserve();
-		slot.confirmBooking();
-
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
-		ReflectionTestUtils.setField(booking, "id", bookingId);
-
-		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
-		when(slotService.releaseBooking(slot.getId())).thenReturn(slot);
-
-		bookingService.cancelBooking(bookingId, now, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
-
-		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
-		assertNotEquals(null, booking.getCancelledAt());
-		assertEquals(now, booking.getCancelledAt());
-		assertEquals(CancellationInitiator.CLIENT, booking.getCancellationInitiator());
-		assertEquals(CancellationReason.CLIENT_REQUEST, booking.getCancellationReason());
-		verify(slotService).releaseBooking(slot.getId());
-	}
-
-	@Test
 	void shouldThrowWhenBookingIdIsNull() {
 		Long bookingId = null;
 
-		InvalidBookingDataException exception = assertThrows(InvalidBookingDataException.class, () -> bookingService
-				.cancelBooking(bookingId, now, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST));
+		InvalidBookingDataException exception = assertThrows(InvalidBookingDataException.class,
+				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), now));
 
 		assertEquals("BOOKING_INVALID_DATA", exception.code());
-		assertEquals("Incorrect id", exception.getMessage());
+		assertEquals("Booking id cannot be null", exception.getMessage());
 		verify(bookingRepository, never()).save(any());
 		verifyNoInteractions(slotService);
 	}
@@ -254,8 +232,7 @@ public class BookingServiceTest {
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.empty());
 
 		BookingNotFoundException exception = assertThrows(BookingNotFoundException.class,
-				() -> bookingService.cancelBooking(bookingId, now, CancellationInitiator.SPECIALIST,
-						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), now));
 
 		assertEquals("BOOKING_NOT_FOUND", exception.code());
 		assertEquals("Booking not found", exception.getMessage());
@@ -274,16 +251,15 @@ public class BookingServiceTest {
 		booking.complete();
 
 		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
 
 		InvalidBookingStateException exception = assertThrows(InvalidBookingStateException.class,
-				() -> bookingService.cancelBooking(bookingId, now, CancellationInitiator.SPECIALIST,
-						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+				() -> bookingService.cancelBookingByClient(bookingId, client.getId(), now));
 
 		assertEquals("BOOKING_INVALID_STATE", exception.code());
 		assertEquals("Cannot cancel booking", exception.getMessage());
 		assertNull(booking.getCancellationInitiator());
 		assertNull(booking.getCancellationReason());
-		verifyNoInteractions(slotService);
 	}
 
 	@Test
@@ -431,5 +407,96 @@ public class BookingServiceTest {
 
 		verifyNoInteractions(slotService, specialistService);
 		verify(bookingRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldCancelOwnBookingByClientAndReleaseSlot() {
+		Long bookingId = 1L;
+		Long clientId = client.getId();
+
+		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+
+		slot.reserve();
+		slot.confirmBooking();
+
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+
+		ReflectionTestUtils.setField(booking, "id", bookingId);
+
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+
+		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
+
+		when(slotService.releaseBooking(slot.getId())).thenAnswer(invocation -> {
+			slot.releaseBooking();
+			return slot;
+		});
+
+		bookingService.cancelBookingByClient(bookingId, clientId, now);
+
+		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+		assertEquals(now, booking.getCancelledAt());
+		assertEquals(CancellationInitiator.CLIENT, booking.getCancellationInitiator());
+		assertEquals(CancellationReason.CLIENT_REQUEST, booking.getCancellationReason());
+
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+
+		verify(bookingRepository).findForUpdateById(bookingId);
+		verify(slotService).releaseBooking(slot.getId());
+	}
+
+	@Test
+	void shouldRejectClientCancellationWhenBookingBelongsToAnotherClient() {
+		Long bookingId = 1L;
+		Long anotherClientId = 999L;
+
+		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+
+		slot.reserve();
+		slot.confirmBooking();
+
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+
+		ReflectionTestUtils.setField(booking, "id", bookingId);
+
+		when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+		when(bookingRepository.findForUpdateById(bookingId)).thenReturn(Optional.of(booking));
+
+		BookingOwnershipException exception = assertThrows(BookingOwnershipException.class,
+				() -> bookingService.cancelBookingByClient(bookingId, anotherClientId, now));
+
+		assertEquals("BOOKING_OWNERSHIP_VIOLATION", exception.code());
+		assertEquals("Booking does not belong to this client", exception.getMessage());
+		assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+
+		verify(bookingRepository).findForUpdateById(bookingId);
+	}
+
+	@Test
+	void shouldCancelBookingForSlotRemovalWithoutReleasingSlot() {
+		Long bookingId = 1L;
+		Long slotId = slot.getId();
+
+		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
+
+		slot.reserve();
+		slot.confirmBooking();
+
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+
+		ReflectionTestUtils.setField(booking, "id", bookingId);
+
+		when(bookingRepository.findConfirmedForUpdateBySlotId(slotId)).thenReturn(Optional.of(booking));
+
+		bookingService.cancelConfirmedBookingForSlotRemoval(slotId, now);
+
+		assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+		assertEquals(now, booking.getCancelledAt());
+		assertEquals(CancellationInitiator.SPECIALIST, booking.getCancellationInitiator());
+		assertEquals(CancellationReason.SPECIALIST_REMOVED_AVAILABILITY, booking.getCancellationReason());
+		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
+		verify(bookingRepository).findConfirmedForUpdateBySlotId(slotId);
+		verifyNoInteractions(slotService);
 	}
 }

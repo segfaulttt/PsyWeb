@@ -184,4 +184,14 @@ public class ReservationService {
 		cancelReservation(reservation, cancelledAt, CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 	}
+
+	@Transactional
+	public void cancelActiveReservationForSpecialistSuspension(Long slotId, LocalDateTime suspendedAt) {
+		if (slotId == null) {
+			throw new InvalidReservationDataException("Slot id cannot be null");
+		}
+		Reservation reservation = reservationRepository.findActiveForUpdateBySlotId(slotId)
+				.orElseThrow(() -> new ReservationNotFoundException("Active reservation not found"));
+		reservation.cancel(suspendedAt, CancellationInitiator.ADMIN, CancellationReason.SPECIALIST_SUSPENDED);
+	}
 }

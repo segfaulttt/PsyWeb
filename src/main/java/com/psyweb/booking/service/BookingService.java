@@ -169,4 +169,14 @@ public class BookingService {
 		cancelBooking(booking, cancelledAt, CancellationInitiator.CLIENT, CancellationReason.CLIENT_REQUEST);
 		slotService.releaseBooking(booking.getSlotId());
 	}
+	
+	@Transactional
+	public void cancelConfirmedBookingForSpecialistSuspension(Long slotId, LocalDateTime suspendedAt) {
+		if (slotId == null) {
+			throw new InvalidBookingDataException("Slot id cannot be null"); 
+		}
+		Booking booking = bookingRepository.findConfirmedForUpdateBySlotId(slotId)
+				.orElseThrow(() -> new BookingNotFoundException("Confirmed booking not found"));
+		booking.cancel(suspendedAt, CancellationInitiator.ADMIN, CancellationReason.SPECIALIST_SUSPENDED);
+	}
 }

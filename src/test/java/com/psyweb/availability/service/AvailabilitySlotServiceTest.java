@@ -67,7 +67,7 @@ class AvailabilitySlotServiceTest {
 		Specialist specialist = mock(Specialist.class);
 
 		when(specialist.getId()).thenReturn(1L);
-		when(specialistService.getEligibleSpecialist(specialist.getId())).thenReturn(specialist);
+		when(specialistService.getEligibleSpecialistForUpdate(specialist.getId())).thenReturn(specialist);
 		LocalDateTime start = now.plusHours(1);
 		LocalDateTime end = now.plusHours(2);
 
@@ -148,7 +148,7 @@ class AvailabilitySlotServiceTest {
 		LocalDateTime start = now.plusHours(1);
 		LocalDateTime end = now.plusHours(2);
 
-		when(specialistService.getEligibleSpecialist(1L)).thenReturn(specialist);
+		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(true);
 
 		Exception exception = assertThrows(IllegalArgumentException.class,
@@ -170,7 +170,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Specialist id cannot be null", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
 	}
@@ -185,7 +185,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Time cannot be null", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(any(), any(), any());
 	}
@@ -200,7 +200,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Time cannot be null", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(any(), any(), any());
 	}
@@ -216,7 +216,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Start must be before end", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
 	}
@@ -232,7 +232,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Start time must be after now", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
 	}
@@ -247,7 +247,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Start time must be after now", exception.getMessage());
 
-		verify(specialistService, never()).getEligibleSpecialist(any());
+		verify(specialistService, never()).getEligibleSpecialistForUpdate(any());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, now, end);
 	}
@@ -260,7 +260,7 @@ class AvailabilitySlotServiceTest {
 		LocalDateTime end = now.plusHours(2);
 
 		when(specialist.getId()).thenReturn(1L);
-		when(specialistService.getEligibleSpecialist(specialist.getId()))
+		when(specialistService.getEligibleSpecialistForUpdate(specialist.getId()))
 				.thenThrow(new SpecialistNotEligibleException("Specialist must have status 'APPROVED'"));
 
 		SpecialistNotEligibleException exception = assertThrows(SpecialistNotEligibleException.class,
@@ -268,7 +268,7 @@ class AvailabilitySlotServiceTest {
 
 		assertEquals("Specialist must have status 'APPROVED'", exception.getMessage());
 
-		verify(specialistService).getEligibleSpecialist(specialist.getId());
+		verify(specialistService).getEligibleSpecialistForUpdate(specialist.getId());
 		verify(slotRepository, never()).save(any());
 		verify(slotRepository, never()).existsOverlappingSlot(1L, start, end);
 	}

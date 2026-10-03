@@ -102,56 +102,56 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldApproveSpecialist() {
-		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.findForUpdateById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		when(repository.save(penSpec)).thenReturn(penSpec);
 		service.approveSpecialist(penSpec.getId());
 		
 		assertEquals(SpecialistStatus.APPROVED, penSpec.getApprovalStatus());
-		verify(repository).findById(penSpec.getId());
+		verify(repository).findForUpdateById(penSpec.getId());
 		verify(repository).save(penSpec);
 	}
 
 	@Test
 	public void shouldRejectSpecialist() {
-		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.findForUpdateById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		when(repository.save(penSpec)).thenReturn(penSpec);
 		service.rejectSpecialist(penSpec.getId());
 		
 		assertEquals(SpecialistStatus.REJECTED, penSpec.getApprovalStatus());
-		verify(repository).findById(penSpec.getId());
+		verify(repository).findForUpdateById(penSpec.getId());
 		verify(repository).save(penSpec);
 	}
 
 	@Test
 	public void shouldResubmitSpecialist() {
-		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.findForUpdateById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		when(repository.save(rejSpec)).thenReturn(rejSpec);
 		service.resubmitSpecialist(rejSpec.getId());
 		
 		assertEquals(SpecialistStatus.PENDING, rejSpec.getApprovalStatus());
-		verify(repository).findById(rejSpec.getId());
+		verify(repository).findForUpdateById(rejSpec.getId());
 		verify(repository).save(rejSpec);
 	}
 
 	@Test
 	public void shouldSuspendSpecialist() {
-		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.findForUpdateById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 		when(repository.save(appSpec)).thenReturn(appSpec);
 		service.suspendSpecialist(appSpec.getId());
 		
 		assertEquals(SpecialistStatus.SUSPENDED, appSpec.getApprovalStatus());
-		verify(repository).findById(appSpec.getId());
+		verify(repository).findForUpdateById(appSpec.getId());
 		verify(repository).save(appSpec);
 	}
 
 	@Test
 	public void shouldReinstateSpecialist() {
-		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.findForUpdateById(susSpec.getId())).thenReturn(Optional.of(susSpec));
 		when(repository.save(susSpec)).thenReturn(susSpec);
 		service.reinstateSpecialist(susSpec.getId());
 		
 		assertEquals(SpecialistStatus.APPROVED, susSpec.getApprovalStatus());
-		verify(repository).findById(susSpec.getId());
+		verify(repository).findForUpdateById(susSpec.getId());
 		verify(repository).save(susSpec);
 	}
 
@@ -181,7 +181,7 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldRejectApproveFromInvalidStatus() {
-		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.findForUpdateById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		InvalidSpecialistStateException exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.approveSpecialist(rejSpec.getId()));
 
@@ -190,7 +190,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.REJECTED, rejSpec.getApprovalStatus());
 		verify(repository, never()).save(rejSpec);
 
-		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.findForUpdateById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.approveSpecialist(appSpec.getId()));
 
@@ -199,7 +199,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.APPROVED, appSpec.getApprovalStatus());
 		verify(repository, never()).save(appSpec);
 
-		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.findForUpdateById(susSpec.getId())).thenReturn(Optional.of(susSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.approveSpecialist(susSpec.getId()));
 
@@ -211,7 +211,7 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldRejectRejectionFromInvalidStatus() {
-		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.findForUpdateById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		InvalidSpecialistStateException exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.rejectSpecialist(rejSpec.getId()));
 
@@ -220,7 +220,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.REJECTED, rejSpec.getApprovalStatus());
 		verify(repository, never()).save(rejSpec);
 
-		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.findForUpdateById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.rejectSpecialist(appSpec.getId()));
 
@@ -229,7 +229,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.APPROVED, appSpec.getApprovalStatus());
 		verify(repository, never()).save(appSpec);
 
-		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.findForUpdateById(susSpec.getId())).thenReturn(Optional.of(susSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.rejectSpecialist(susSpec.getId()));
 
@@ -241,7 +241,7 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldRejectResubmitFromInvalidStatus() {
-		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.findForUpdateById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		InvalidSpecialistStateException exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.resubmitSpecialist(penSpec.getId()));
 
@@ -250,7 +250,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.PENDING, penSpec.getApprovalStatus());
 		verify(repository, never()).save(penSpec);
 
-		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.findForUpdateById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.resubmitSpecialist(appSpec.getId()));
 
@@ -259,7 +259,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.APPROVED, appSpec.getApprovalStatus());
 		verify(repository, never()).save(appSpec);
 
-		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.findForUpdateById(susSpec.getId())).thenReturn(Optional.of(susSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.resubmitSpecialist(susSpec.getId()));
 
@@ -271,7 +271,7 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldRejectSuspensionFromInvalidStatus() {
-		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.findForUpdateById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		InvalidSpecialistStateException exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.suspendSpecialist(penSpec.getId()));
 
@@ -280,7 +280,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.PENDING, penSpec.getApprovalStatus());
 		verify(repository, never()).save(penSpec);
 
-		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.findForUpdateById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.suspendSpecialist(rejSpec.getId()));
 
@@ -289,7 +289,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.REJECTED, rejSpec.getApprovalStatus());
 		verify(repository, never()).save(rejSpec);
 
-		when(repository.findById(susSpec.getId())).thenReturn(Optional.of(susSpec));
+		when(repository.findForUpdateById(susSpec.getId())).thenReturn(Optional.of(susSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.suspendSpecialist(susSpec.getId()));
 
@@ -301,7 +301,7 @@ public class SpecialistServiceTest {
 
 	@Test
 	public void shouldRejectReinstatementFromInvalidStatus() {
-		when(repository.findById(penSpec.getId())).thenReturn(Optional.of(penSpec));
+		when(repository.findForUpdateById(penSpec.getId())).thenReturn(Optional.of(penSpec));
 		InvalidSpecialistStateException exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.reinstateSpecialist(penSpec.getId()));
 
@@ -310,7 +310,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.PENDING, penSpec.getApprovalStatus());
 		verify(repository, never()).save(penSpec);
 
-		when(repository.findById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
+		when(repository.findForUpdateById(rejSpec.getId())).thenReturn(Optional.of(rejSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.reinstateSpecialist(rejSpec.getId()));
 
@@ -319,7 +319,7 @@ public class SpecialistServiceTest {
 		assertEquals(SpecialistStatus.REJECTED, rejSpec.getApprovalStatus());
 		verify(repository, never()).save(rejSpec);
 
-		when(repository.findById(appSpec.getId())).thenReturn(Optional.of(appSpec));
+		when(repository.findForUpdateById(appSpec.getId())).thenReturn(Optional.of(appSpec));
 		exception = assertThrows(InvalidSpecialistStateException.class,
 				() -> service.reinstateSpecialist(appSpec.getId()));
 

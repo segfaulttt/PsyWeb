@@ -3,15 +3,18 @@ package com.psyweb.admin.service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
+import org.springframework.stereotype.Service;
+
 import com.psyweb.booking.service.SchedulingService;
 import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.service.SpecialistService;
 
 import jakarta.transaction.Transactional;
 
+@Service
 public class SpecialistModerationService {
-	private SpecialistService specialistService;
-	private SchedulingService schedulingService;
+	private final SpecialistService specialistService;
+	private final SchedulingService schedulingService;
 	private final Clock clock;
 	
 	public SpecialistModerationService(SpecialistService specialistService, SchedulingService schedulingService, Clock clock) {

@@ -81,15 +81,15 @@ public class SchedulingService {
 			case FREE:
 				break;
 			case RESERVED:
-				reservationService.cancelActiveReservationForSpecialistSuspension(specialistId, suspendedAt);
+				reservationService.cancelActiveReservationForSpecialistSuspension(slot.getId(), suspendedAt);
 				break;
 			case BOOKED:
-				bookingService.cancelConfirmedBookingForSpecialistSuspension(specialistId, suspendedAt);
+				bookingService.cancelConfirmedBookingForSpecialistSuspension(slot.getId(), suspendedAt);
 				break;
 			case CANCELLED:
 				throw new InvalidAvailabilitySlotStateException("Cancelled slot must not be returned for suspension");
 			}
-			slotService.cancelSlot(specialistId, suspendedAt, CancellationInitiator.ADMIN,
+			slotService.cancelSlot(slot.getId(), suspendedAt, CancellationInitiator.ADMIN,
 					CancellationReason.SPECIALIST_SUSPENDED);
 		}
 	}

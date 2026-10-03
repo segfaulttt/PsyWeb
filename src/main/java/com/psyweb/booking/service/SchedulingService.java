@@ -2,6 +2,7 @@ package com.psyweb.booking.service;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
@@ -30,14 +31,23 @@ public class SchedulingService {
 		this.clock = clock;
 	}
 
-	@Transactional
-	public void removeSlotBySpecialist(Long slotId, Long specialistId) {
-		if (slotId == null) {
-			throw new InvalidAvailabilitySlotDataException("Slot id cannot be null");
-		}
+	private void validateSpecialistId(Long specialistId) {
 		if (specialistId == null) {
 			throw new InvalidSpecialistDataException("Specialist id cannot be null");
 		}
+	}
+
+	private void validateSlotId(Long slotId) {
+		if (slotId == null) {
+			throw new InvalidAvailabilitySlotDataException("Slot id cannot be null");
+		}
+	}
+
+	@Transactional
+	public void removeSlotBySpecialist(Long slotId, Long specialistId) {
+		validateSlotId(slotId);
+		validateSpecialistId(specialistId);
+
 		AvailabilitySlot slot = slotService.findSlotForUpdate(slotId);
 		if (!slot.getSpecialistId().equals(specialistId)) {
 			throw new InvalidAvailabilitySlotStateException("Slot does not belong to this specialist");
@@ -59,4 +69,28 @@ public class SchedulingService {
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 	}
 
+	@Transactional
+	public void cancelFutureSlotsForSpecialistSuspension(Long specialistId, LocalDateTime suspendedAt) {
+		validateSpecialistId(specialistId);
+		if (suspendedAt == null) {
+			throw new InvalidAvailabilitySlotDataException("Suspension time cannot be null");
+		}
+		List<AvailabilitySlot> slots = slotService.findFutureSlotsForUpdate(specialistId, suspendedAt);
+		for (AvailabilitySlot slot : slots) {
+			switch (slot.getAvailabilityStatus()) {
+			case FREE:
+				break;
+			case RESERVED:
+				reservationService.cancelActiveReservationForSpecialistSuspension(slot.getId(), suspendedAt);
+				break;
+			case BOOKED:
+				bookingService.cancelConfirmedBookingForSpecialistSuspension(slot.getId(), suspendedAt);
+				break;
+			case CANCELLED:
+				throw new InvalidAvailabilitySlotStateException("Cancelled slot must not be returned for suspension");
+			}
+			slotService.cancelSlot(slot.getId(), suspendedAt, CancellationInitiator.ADMIN,
+					CancellationReason.SPECIALIST_SUSPENDED);
+		}
+	}
 }

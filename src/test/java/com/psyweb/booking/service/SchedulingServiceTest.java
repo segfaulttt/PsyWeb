@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,59 @@ public class SchedulingServiceTest {
 	@BeforeEach
 	void setUp() {
 		schedulingService = new SchedulingService(slotService, bookingService, reservationService, clock);
+	}
+
+	@Test
+	void shouldCancelFutureFreeSlotWhenSpecialistIsSuspended() {
+		AvailabilitySlot slot = createSlot(AvailabilityStatus.FREE);
+
+		when(slotService.findFutureSlotsForUpdate(SPECIALIST_ID, now)).thenReturn(List.of(slot));
+
+		schedulingService.cancelFutureSlotsForSpecialistSuspension(SPECIALIST_ID, now);
+
+		verify(slotService).findFutureSlotsForUpdate(SPECIALIST_ID, now);
+
+		verify(slotService).cancelSlot(SLOT_ID, now, CancellationInitiator.ADMIN,
+				CancellationReason.SPECIALIST_SUSPENDED);
+
+		verifyNoInteractions(reservationService);
+		verifyNoInteractions(bookingService);
+	}
+
+	@Test
+	void shouldCancelActiveReservationWhenSpecialistIsSuspended() {
+		AvailabilitySlot slot = createSlot(AvailabilityStatus.RESERVED);
+
+		when(slotService.findFutureSlotsForUpdate(SPECIALIST_ID, now)).thenReturn(List.of(slot));
+
+		schedulingService.cancelFutureSlotsForSpecialistSuspension(SPECIALIST_ID, now);
+
+		verify(slotService).findFutureSlotsForUpdate(SPECIALIST_ID, now);
+
+		verify(reservationService).cancelActiveReservationForSpecialistSuspension(SLOT_ID, now);
+
+		verify(slotService).cancelSlot(SLOT_ID, now, CancellationInitiator.ADMIN,
+				CancellationReason.SPECIALIST_SUSPENDED);
+
+		verifyNoInteractions(bookingService);
+	}
+
+	@Test
+	void shouldCancelConfirmedBookingWhenSpecialistIsSuspended() {
+		AvailabilitySlot slot = createSlot(AvailabilityStatus.BOOKED);
+
+		when(slotService.findFutureSlotsForUpdate(SPECIALIST_ID, now)).thenReturn(List.of(slot));
+
+		schedulingService.cancelFutureSlotsForSpecialistSuspension(SPECIALIST_ID, now);
+
+		verify(slotService).findFutureSlotsForUpdate(SPECIALIST_ID, now);
+
+		verify(bookingService).cancelConfirmedBookingForSpecialistSuspension(SLOT_ID, now);
+
+		verify(slotService).cancelSlot(SLOT_ID, now, CancellationInitiator.ADMIN,
+				CancellationReason.SPECIALIST_SUSPENDED);
+
+		verifyNoInteractions(reservationService);
 	}
 
 	@Test

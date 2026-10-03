@@ -13,22 +13,29 @@ import com.psyweb.availability.domain.AvailabilitySlot;
 
 import jakarta.persistence.LockModeType;
 
-public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long>{
-	
+public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long> {
+
 	public List<AvailabilitySlot> findBySpecialistId(Long specialistId);
 
-	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END " +
-			"FROM AvailabilitySlot s " +
-			"WHERE s.specialist.id = :specialistId " +
-			"AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED " +
-			"AND s.startTime < :newEnd " +
-			"AND s.endTime > :newStart")
-	public boolean existsOverlappingSlot(
-			@Param("specialistId")Long specialistId, 
-			@Param("newStart") LocalDateTime newStart, 
-			@Param("newEnd")LocalDateTime newEnd
-			);
-	
+	@Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END "
+			+ "FROM AvailabilitySlot s "
+			+ "WHERE s.specialist.id = :specialistId "
+			+ "AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED "
+			+ "AND s.startTime < :newEnd " + "AND s.endTime > :newStart")
+	boolean existsOverlappingSlot(@Param("specialistId") Long specialistId, @Param("newStart") LocalDateTime newStart,
+			@Param("newEnd") LocalDateTime newEnd);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<AvailabilitySlot> findForUpdateById(Long slotId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT s "
+			+ "FROM slots s "
+			+ "WHERE s.specialist.id = :specialistId "
+			+ "AND s.startTime > :suspendedAt "
+			+ "AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED "
+			+ "ORDER BY s.id")
+	List<AvailabilitySlot> findFutureForUpdateBySpecialistId(
+			@Param("specialistId") Long specialistId,
+			@Param("suspendedAt")LocalDateTime suspendedAt);
 }

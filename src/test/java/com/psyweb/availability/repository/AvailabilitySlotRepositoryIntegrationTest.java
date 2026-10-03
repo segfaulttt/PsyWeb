@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,5 +138,36 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		assertEquals(AvailabilityStatus.FREE, reopenedSlot.getAvailabilityStatus());
 
 		assertNotEquals(firstSlot.getId(), reopenedSlot.getId());
+	}
+
+	@Test
+	void shouldFindOnlySlotsStartingAfterSuspensionTime() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		LocalDateTime suspendedAt = now.plusDays(2);
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-suspension-boundary@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "Boundary", Duration.ZERO, Duration.ZERO);
+
+		specialist.approve();
+		specialist = specialistRepository.saveAndFlush(specialist);
+
+		AvailabilitySlot beforeBoundary = new AvailabilitySlot(specialist, suspendedAt.minusHours(1), suspendedAt);
+
+		AvailabilitySlot atBoundary = new AvailabilitySlot(specialist, suspendedAt, suspendedAt.plusHours(1));
+
+		AvailabilitySlot afterBoundary = new AvailabilitySlot(specialist, suspendedAt.plusHours(1),
+				suspendedAt.plusHours(2));
+
+		slotRepository.saveAllAndFlush(List.of(beforeBoundary, atBoundary, afterBoundary));
+
+		entityManager.clear();
+
+		List<AvailabilitySlot> result = slotRepository.findFutureForUpdateBySpecialistId(specialist.getId(),
+				suspendedAt);
+
+		assertEquals(1, result.size());
+		assertEquals(afterBoundary.getId(), result.get(0).getId());
 	}
 }

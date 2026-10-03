@@ -38,6 +38,7 @@ public class AvailabilitySlotService {
 		}
 	}
 
+	@Transactional
 	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
 		if (specialistId == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist id cannot be null");

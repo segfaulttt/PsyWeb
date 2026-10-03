@@ -30,7 +30,7 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT s "
-			+ "FROM slots s "
+			+ "FROM AvailabilitySlot s "
 			+ "WHERE s.specialist.id = :specialistId "
 			+ "AND s.startTime > :suspendedAt "
 			+ "AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED "

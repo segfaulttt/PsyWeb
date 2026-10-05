@@ -9,6 +9,13 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import org.hibernate.exception.ConstraintViolationException;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.postgresql.util.PSQLException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -169,5 +176,103 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 		assertEquals(1, result.size());
 		assertEquals(afterBoundary.getId(), result.get(0).getId());
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = AvailabilityStatus.class, names = { "FREE", "RESERVED", "BOOKED" })
+	void shouldRejectOverlappingActiveSlotsForSameSpecialist(AvailabilityStatus existingStatus) {
+
+		Specialist specialist = persistSpecialist("active-" + existingStatus.name().toLowerCase());
+
+		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(10);
+
+		AvailabilitySlot existingSlot = createSlotWithStatus(specialist, start, start.plusHours(1), existingStatus);
+
+		slotRepository.saveAndFlush(existingSlot);
+
+		AvailabilitySlot overlappingSlot = new AvailabilitySlot(specialist, start.plusMinutes(30),
+				start.plusHours(1).plusMinutes(30));
+
+		DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
+				() -> slotRepository.saveAndFlush(overlappingSlot));
+
+		assertConstraintName(exception, "no_overlapping_active_slots");
+	}
+
+	@Test
+	void shouldAllowAdjacentActiveSlotsForSameSpecialist() {
+		Specialist specialist = persistSpecialist("adjacent");
+
+		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(11);
+
+		AvailabilitySlot firstSlot = new AvailabilitySlot(specialist, start, start.plusHours(1));
+
+		AvailabilitySlot secondSlot = new AvailabilitySlot(specialist, start.plusHours(1), start.plusHours(2));
+
+		firstSlot = slotRepository.saveAndFlush(firstSlot);
+		secondSlot = slotRepository.saveAndFlush(secondSlot);
+
+		assertNotNull(firstSlot.getId());
+		assertNotNull(secondSlot.getId());
+	}
+
+	@Test
+	void shouldAllowOverlappingSlotsForDifferentSpecialists() {
+		Specialist firstSpecialist = persistSpecialist("different-first");
+		Specialist secondSpecialist = persistSpecialist("different-second");
+
+		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(12);
+
+		AvailabilitySlot firstSlot = new AvailabilitySlot(firstSpecialist, start, start.plusHours(1));
+
+		AvailabilitySlot secondSlot = new AvailabilitySlot(secondSpecialist, start, start.plusHours(1));
+
+		firstSlot = slotRepository.saveAndFlush(firstSlot);
+		secondSlot = slotRepository.saveAndFlush(secondSlot);
+
+		assertNotNull(firstSlot.getId());
+		assertNotNull(secondSlot.getId());
+	}
+
+	private Specialist persistSpecialist(String suffix) {
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-overlap-" + suffix + "@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		return specialistRepository
+				.saveAndFlush(new Specialist(specialistUser, "Anna", "Overlap", Duration.ZERO, Duration.ZERO));
+	}
+
+	private AvailabilitySlot createSlotWithStatus(Specialist specialist, LocalDateTime start, LocalDateTime end,
+			AvailabilityStatus status) {
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, end);
+
+		if (status == AvailabilityStatus.RESERVED) {
+			slot.reserve();
+		}
+
+		if (status == AvailabilityStatus.BOOKED) {
+			slot.reserve();
+			slot.confirmBooking();
+		}
+
+		return slot;
+	}
+
+	private void assertConstraintName(DataIntegrityViolationException exception, String expectedConstraintName) {
+		Throwable cause = exception;
+
+		while (cause != null) {
+			if (cause instanceof ConstraintViolationException constraintException
+					&& expectedConstraintName.equals(constraintException.getConstraintName())) {
+				return;
+			}
+			if (cause instanceof PSQLException postgresException && postgresException.getServerErrorMessage() != null
+					&& expectedConstraintName.equals(postgresException.getServerErrorMessage().getConstraint())) {
+				return;
+			}
+			cause = cause.getCause();
+		}
+		fail("Expected constraint violation: " + expectedConstraintName);
 	}
 }

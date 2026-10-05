@@ -15,11 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
+import com.psyweb.availability.exception.SlotOverlapException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.cancellation.domain.CancellationInitiator;
@@ -30,6 +33,8 @@ import com.psyweb.specialist.service.SpecialistService;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
+
+
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -72,7 +77,7 @@ class AvailabilitySlotServiceTest {
 		LocalDateTime end = now.plusHours(2);
 
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
-		when(slotRepository.save(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		ArgumentCaptor<AvailabilitySlot> captor = ArgumentCaptor.forClass(AvailabilitySlot.class);
 		AvailabilitySlot result = slotService.createSlot(specialist.getId(), start, end);
 
@@ -81,7 +86,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals(start, result.getStartTime());
 		assertEquals(end, result.getEndTime());
 
-		verify(slotRepository).save(captor.capture());
+		verify(slotRepository).saveAndFlush(captor.capture());
 		AvailabilitySlot captured = captor.getValue();
 		assertEquals(start, captured.getStartTime());
 		assertEquals(end, captured.getEndTime());
@@ -151,11 +156,12 @@ class AvailabilitySlotServiceTest {
 		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(true);
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		SlotOverlapException exception = assertThrows(SlotOverlapException.class,
 				() -> slotService.createSlot(1L, start, end));
 
-		assertEquals("Overlap", exception.getMessage());
-		verify(slotRepository, never()).save(any());
+		assertEquals("SLOT_OVERLAP", exception.code());
+		assertEquals("Slot overlap", exception.getMessage());
+		verify(slotRepository, never()).saveAndFlush(any());
 		verify(slotRepository).existsOverlappingSlot(1L, start, end);
 	}
 
@@ -547,5 +553,56 @@ class AvailabilitySlotServiceTest {
 		assertEquals("Slot not found", exception.getMessage());
 
 		verify(slotRepository, never()).save(any());
+	}
+	
+	@Test
+	public void shouldTranslateSlotOverlapConstraintViolation() {
+		LocalDateTime start = now.plusHours(1);
+		LocalDateTime end = now.plusHours(2);
+
+		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
+		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
+
+		ConstraintViolationException constraintException = mock(ConstraintViolationException.class);
+		when(constraintException.getConstraintName()).thenReturn("no_overlapping_active_slots");
+
+		DataIntegrityViolationException dataException =
+				new DataIntegrityViolationException("Constraint violation", constraintException);
+
+		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenThrow(dataException);
+
+		SlotOverlapException exception = assertThrows(
+				SlotOverlapException.class,
+				() -> slotService.createSlot(1L, start, end));
+
+		assertEquals("SLOT_OVERLAP", exception.code());
+		assertEquals("Slot overlap", exception.getMessage());
+		assertSame(dataException, exception.getCause());
+
+		verify(slotRepository).existsOverlappingSlot(1L, start, end);
+		verify(slotRepository).saveAndFlush(any(AvailabilitySlot.class));
+	}
+
+	@Test
+	public void shouldRethrowUnrelatedDataIntegrityViolation() {
+		LocalDateTime start = now.plusHours(1);
+		LocalDateTime end = now.plusHours(2);
+
+		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
+		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
+
+		ConstraintViolationException constraintException = mock(ConstraintViolationException.class);
+		when(constraintException.getConstraintName()).thenReturn("some_other_constraint");
+
+		DataIntegrityViolationException dataException =
+				new DataIntegrityViolationException("Constraint violation", constraintException);
+
+		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenThrow(dataException);
+
+		DataIntegrityViolationException exception = assertThrows(
+				DataIntegrityViolationException.class,
+				() -> slotService.createSlot(1L, start, end));
+
+		assertSame(dataException, exception);
 	}
 }

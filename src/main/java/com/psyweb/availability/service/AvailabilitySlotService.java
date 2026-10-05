@@ -4,13 +4,17 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.hibernate.exception.ConstraintViolationException;
+
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
+import com.psyweb.availability.exception.SlotOverlapException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
@@ -57,12 +61,30 @@ public class AvailabilitySlotService {
 		Specialist specialist = specialistService.getEligibleSpecialistForUpdate(specialistId);
 
 		if (slotRepository.existsOverlappingSlot(specialistId, startTime, endTime)) {
-			throw new IllegalArgumentException("Overlap");
+			throw new SlotOverlapException("Slot overlap");
 		}
 
-		AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
-
-		return slotRepository.save(newSlot);
+		try {
+			AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
+			return slotRepository.saveAndFlush(newSlot);
+		} catch (DataIntegrityViolationException e) {
+			if (isSlotOverlapConstraintViolation(e)) {
+				throw new SlotOverlapException("Slot overlap", e);
+			}
+			throw e;
+		}
+	}
+	
+	private boolean isSlotOverlapConstraintViolation(DataIntegrityViolationException exception) {
+		Throwable cause = exception;
+		
+		while (cause != null) {
+			if (cause instanceof ConstraintViolationException constraintException) {
+				return "no_overlapping_active_slots".equals(constraintException.getConstraintName());
+			}
+			cause = cause.getCause();
+		}
+		return false;
 	}
 
 	// Find slot:

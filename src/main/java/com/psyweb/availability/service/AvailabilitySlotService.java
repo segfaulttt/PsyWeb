@@ -1,6 +1,7 @@
 package com.psyweb.availability.service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,7 +47,8 @@ public class AvailabilitySlotService {
 	}
 
 	@Transactional
-	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
+	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime,
+			Duration minimumBookingNoticeOverride) {
 		if (specialistId == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist id cannot be null");
 		}
@@ -68,7 +70,7 @@ public class AvailabilitySlotService {
 		}
 
 		try {
-			AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime);
+			AvailabilitySlot newSlot = new AvailabilitySlot(specialist, startTime, endTime, minimumBookingNoticeOverride);
 			return slotRepository.saveAndFlush(newSlot);
 		} catch (DataIntegrityViolationException e) {
 			if (isSlotOverlapConstraintViolation(e)) {
@@ -188,7 +190,16 @@ public class AvailabilitySlotService {
 		validateSlotId(slotId);
 		AvailabilitySlot slot = slotRepository.findForUpdateById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
+		if (slot.getAvailabilityStatus() != AvailabilityStatus.FREE) {
+			throw new InvalidAvailabilitySlotStateException("Slot must have status 'FREE'");
+		}
 
+		LocalDateTime now = LocalDateTime.now(clock);
+		LocalDateTime bookingDeadline = slot.getBookingDeadline();
+
+		if (!now.isBefore(bookingDeadline)) {
+			throw new InvalidAvailabilitySlotStateException("Slot is no longer bookable");
+		}
 		slot.reserve();
 		return slotRepository.save(slot);
 	}

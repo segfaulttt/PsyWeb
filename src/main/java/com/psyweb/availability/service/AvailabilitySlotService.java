@@ -8,7 +8,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.hibernate.exception.ConstraintViolationException;
 
-
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
@@ -21,10 +20,14 @@ import com.psyweb.cancellation.domain.CancellationReason;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.service.SpecialistService;
 
+import org.postgresql.util.PSQLException;
+
 import jakarta.transaction.Transactional;
 
 @Service
 public class AvailabilitySlotService {
+	private static final String SLOT_OVERLAP_CONSTRAINT = "no_overlapping_active_slots";
+
 	private final AvailabilitySlotRepository slotRepository;
 	private final SpecialistService specialistService;
 	private final Clock clock;
@@ -35,7 +38,7 @@ public class AvailabilitySlotService {
 		this.specialistService = specialistService;
 		this.clock = clock;
 	}
-	
+
 	private void validateSlotId(Long slotId) {
 		if (slotId == null) {
 			throw new InvalidAvailabilitySlotDataException("Slot id cannot be null");
@@ -74,16 +77,25 @@ public class AvailabilitySlotService {
 			throw e;
 		}
 	}
-	
+
 	private boolean isSlotOverlapConstraintViolation(DataIntegrityViolationException exception) {
+
 		Throwable cause = exception;
-		
+
 		while (cause != null) {
-			if (cause instanceof ConstraintViolationException constraintException) {
-				return "no_overlapping_active_slots".equals(constraintException.getConstraintName());
+			if (cause instanceof ConstraintViolationException constraintException
+					&& SLOT_OVERLAP_CONSTRAINT.equals(constraintException.getConstraintName())) {
+				return true;
 			}
+
+			if (cause instanceof PSQLException postgresException && postgresException.getServerErrorMessage() != null
+					&& SLOT_OVERLAP_CONSTRAINT.equals(postgresException.getServerErrorMessage().getConstraint())) {
+				return true;
+			}
+
 			cause = cause.getCause();
 		}
+
 		return false;
 	}
 

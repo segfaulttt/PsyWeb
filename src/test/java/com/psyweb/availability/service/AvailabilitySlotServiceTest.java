@@ -20,6 +20,7 @@ import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.availability.domain.AvailabilityStatus;
 import com.psyweb.availability.exception.AvailabilitySlotNotFoundException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
+import com.psyweb.availability.exception.SlotOverlapException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.availability.repository.AvailabilitySlotRepository;
 import com.psyweb.cancellation.domain.CancellationInitiator;
@@ -72,7 +73,7 @@ class AvailabilitySlotServiceTest {
 		LocalDateTime end = now.plusHours(2);
 
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
-		when(slotRepository.save(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		ArgumentCaptor<AvailabilitySlot> captor = ArgumentCaptor.forClass(AvailabilitySlot.class);
 		AvailabilitySlot result = slotService.createSlot(specialist.getId(), start, end);
 
@@ -81,7 +82,7 @@ class AvailabilitySlotServiceTest {
 		assertEquals(start, result.getStartTime());
 		assertEquals(end, result.getEndTime());
 
-		verify(slotRepository).save(captor.capture());
+		verify(slotRepository).saveAndFlush(captor.capture());
 		AvailabilitySlot captured = captor.getValue();
 		assertEquals(start, captured.getStartTime());
 		assertEquals(end, captured.getEndTime());
@@ -151,11 +152,11 @@ class AvailabilitySlotServiceTest {
 		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(true);
 
-		Exception exception = assertThrows(IllegalArgumentException.class,
+		SlotOverlapException exception = assertThrows(SlotOverlapException.class,
 				() -> slotService.createSlot(1L, start, end));
 
-		assertEquals("Overlap", exception.getMessage());
-		verify(slotRepository, never()).save(any());
+		assertEquals("Slot overlap", exception.getMessage());
+		verify(slotRepository, never()).saveAndFlush(any());
 		verify(slotRepository).existsOverlappingSlot(1L, start, end);
 	}
 

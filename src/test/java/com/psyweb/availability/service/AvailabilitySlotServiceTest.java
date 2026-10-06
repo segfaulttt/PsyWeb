@@ -34,8 +34,6 @@ import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 
-
-
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,7 +75,8 @@ class AvailabilitySlotServiceTest {
 		LocalDateTime end = now.plusHours(2);
 
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
-		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
 		ArgumentCaptor<AvailabilitySlot> captor = ArgumentCaptor.forClass(AvailabilitySlot.class);
 		AvailabilitySlot result = slotService.createSlot(specialist.getId(), start, end);
 
@@ -109,8 +108,7 @@ class AvailabilitySlotServiceTest {
 	public void shouldReserveFreeSlot() {
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
-		when(slotRepository.findForUpdateById(SLOT_ID))
-			.thenReturn(Optional.of(slot));
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
 		when(slotRepository.save(any(AvailabilitySlot.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		AvailabilitySlot result = slotService.reserveSlot(SLOT_ID);
@@ -126,8 +124,7 @@ class AvailabilitySlotServiceTest {
 
 		assertEquals(AvailabilityStatus.BOOKED, slot.getAvailabilityStatus());
 
-		when(slotRepository.findForUpdateById(SLOT_ID))
-			.thenReturn(Optional.of(slot));
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
 				() -> slotService.reserveSlot(SLOT_ID));
 
@@ -139,8 +136,7 @@ class AvailabilitySlotServiceTest {
 	public void shouldRejectReservationReleaseWhenSlotIsFree() {
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
 
-		when(slotRepository.findForUpdateById(SLOT_ID))
-			.thenReturn(Optional.of(slot));
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
 				() -> slotService.releaseReservation(SLOT_ID));
 
@@ -554,7 +550,7 @@ class AvailabilitySlotServiceTest {
 
 		verify(slotRepository, never()).save(any());
 	}
-	
+
 	@Test
 	public void shouldTranslateSlotOverlapConstraintViolation() {
 		LocalDateTime start = now.plusHours(1);
@@ -566,13 +562,12 @@ class AvailabilitySlotServiceTest {
 		ConstraintViolationException constraintException = mock(ConstraintViolationException.class);
 		when(constraintException.getConstraintName()).thenReturn("no_overlapping_active_slots");
 
-		DataIntegrityViolationException dataException =
-				new DataIntegrityViolationException("Constraint violation", constraintException);
+		DataIntegrityViolationException dataException = new DataIntegrityViolationException("Constraint violation",
+				constraintException);
 
 		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenThrow(dataException);
 
-		SlotOverlapException exception = assertThrows(
-				SlotOverlapException.class,
+		SlotOverlapException exception = assertThrows(SlotOverlapException.class,
 				() -> slotService.createSlot(1L, start, end));
 
 		assertEquals("SLOT_OVERLAP", exception.code());
@@ -594,15 +589,90 @@ class AvailabilitySlotServiceTest {
 		ConstraintViolationException constraintException = mock(ConstraintViolationException.class);
 		when(constraintException.getConstraintName()).thenReturn("some_other_constraint");
 
-		DataIntegrityViolationException dataException =
-				new DataIntegrityViolationException("Constraint violation", constraintException);
+		DataIntegrityViolationException dataException = new DataIntegrityViolationException("Constraint violation",
+				constraintException);
 
 		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class))).thenThrow(dataException);
 
-		DataIntegrityViolationException exception = assertThrows(
-				DataIntegrityViolationException.class,
+		DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
 				() -> slotService.createSlot(1L, start, end));
 
 		assertSame(dataException, exception);
+	}
+
+	@Test
+	void shouldRejectReservationAtBookingDeadline() {
+		User user = new User("specialist-deadline@example.com", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "Deadline", Duration.ofHours(1), Duration.ZERO);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
+
+		// start = now + 1h
+		// notice = 1h
+		// bookingDeadline = now
+
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
+
+		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
+				() -> slotService.reserveSlot(SLOT_ID));
+
+		assertEquals("Slot is no longer bookable", exception.getMessage());
+
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+
+		verify(slotRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldRejectReservationAfterBookingDeadline() {
+		User user = new User("specialist-after-deadline@example.com", "password", UserRole.SPECIALIST,
+				UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "AfterDeadline", Duration.ofHours(2), Duration.ZERO);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
+
+		// start = now + 1h
+		// notice = 2h
+		// deadline = now - 1h
+
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
+
+		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
+				() -> slotService.reserveSlot(SLOT_ID));
+
+		assertEquals("Slot is no longer bookable", exception.getMessage());
+
+		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
+
+		verify(slotRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldUseSlotOverrideWhenCheckingBookingDeadline() {
+		User user = new User("specialist-service-override@example.com", "password", UserRole.SPECIALIST,
+				UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "Override", Duration.ofHours(2), Duration.ZERO);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2),
+				Duration.ofMinutes(30));
+
+		// Specialist default:
+		// deadline = now - 1h это уже поздно
+		//
+		// Slot override:
+		// deadline = now + 30m бронировать можно
+
+		when(slotRepository.findForUpdateById(SLOT_ID)).thenReturn(Optional.of(slot));
+
+		when(slotRepository.save(slot)).thenReturn(slot);
+
+		AvailabilitySlot result = slotService.reserveSlot(SLOT_ID);
+
+		assertEquals(AvailabilityStatus.RESERVED, result.getAvailabilityStatus());
+
+		verify(slotRepository).save(slot);
 	}
 }

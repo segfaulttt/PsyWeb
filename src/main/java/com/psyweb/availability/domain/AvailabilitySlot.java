@@ -1,14 +1,17 @@
 package com.psyweb.availability.domain;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
 import com.psyweb.cancellation.domain.CancellationInitiator;
 import com.psyweb.cancellation.domain.CancellationReason;
+import com.psyweb.common.persistence.DurationMinutesConverter;
 import com.psyweb.specialist.domain.Specialist;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -52,10 +55,19 @@ public class AvailabilitySlot {
 	@Enumerated(EnumType.STRING)
 	private CancellationReason reason;
 
+	@Column(name = "minimum_booking_notice_minutes")
+	@Convert(converter = DurationMinutesConverter.class)
+	private Duration minimumBookingNoticeOverride;
+
 	protected AvailabilitySlot() {
 	}
-
+	
 	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
+		this(specialist, startTime, endTime, null);
+	}
+
+	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime,
+			Duration minimumBookingNoticeOverride) {
 		if (startTime == null || endTime == null) {
 			throw new InvalidAvailabilitySlotDataException("Time cannot be null");
 		}
@@ -66,16 +78,33 @@ public class AvailabilitySlot {
 		if (specialist == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist cannot be null");
 		}
+		validateMinimumBookingNoticeOverride(minimumBookingNoticeOverride);
 		this.specialist = specialist;
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.availabilityStatus = AvailabilityStatus.FREE;
+		this.minimumBookingNoticeOverride = minimumBookingNoticeOverride;
 	}
 
 	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidAvailabilitySlotDataException("Cancellation metadata cannot be null");
+		}
+	}
+
+	private static void validateMinimumBookingNoticeOverride(Duration notice) {
+		if (notice == null) {
+			return;
+		}
+		if (notice.isNegative()) {
+			throw new InvalidAvailabilitySlotDataException("Minimum booking notice override cannot be negative");
+		}
+		if (notice.getSeconds() % 60 != 0 || notice.getNano() != 0) {
+			throw new InvalidAvailabilitySlotDataException("Minimum booking notice override must contain whole minutes");
+		}
+		if (notice.toMinutes() > Integer.MAX_VALUE) {
+			throw new InvalidAvailabilitySlotDataException("Minimum booking notice override exceeds supported range");
 		}
 	}
 
@@ -109,6 +138,15 @@ public class AvailabilitySlot {
 
 	public CancellationReason getCancellationReason() {
 		return this.reason;
+	}
+
+	public Duration getEffectiveMinimumBookingNotice() {
+		return minimumBookingNoticeOverride != null ? minimumBookingNoticeOverride
+				: specialist.getMinimumBookingNotice();
+	}
+
+	public LocalDateTime getBookingDeadline() {
+		return startTime.minus(getEffectiveMinimumBookingNotice());
 	}
 
 	public void reserve() {

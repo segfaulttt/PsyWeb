@@ -3,6 +3,7 @@ package com.psyweb.availability.repository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -274,5 +275,65 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 			cause = cause.getCause();
 		}
 		fail("Expected constraint violation: " + expectedConstraintName);
+	}
+
+	@Test
+	void shouldPersistMinimumBookingNoticeOverrideAsMinutes() {
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-notice-persistence@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository.saveAndFlush(
+				new Specialist(specialistUser, "Anna", "NoticePersistence", Duration.ofHours(2), Duration.ZERO));
+
+		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(20);
+
+		AvailabilitySlot slot = slotRepository
+				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(30)));
+
+		Integer persistedMinutes = jdbcTemplate.queryForObject("""
+				SELECT minimum_booking_notice_minutes
+				FROM slots
+				WHERE id = ?
+				""", Integer.class, slot.getId());
+
+		assertEquals(30, persistedMinutes);
+
+		Long slotId = slot.getId();
+
+		entityManager.clear();
+
+		AvailabilitySlot restored = slotRepository.findById(slotId).orElseThrow();
+
+		assertEquals(Duration.ofMinutes(30), restored.getEffectiveMinimumBookingNotice());
+	}
+
+	@Test
+	void shouldPersistNullMinimumBookingNoticeOverrideAndUseSpecialistDefault() {
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-null-notice@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository
+				.saveAndFlush(new Specialist(specialistUser, "Anna", "NullNotice", Duration.ofHours(2), Duration.ZERO));
+
+		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(21);
+
+		AvailabilitySlot slot = slotRepository
+				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plusHours(1)));
+
+		Integer persistedMinutes = jdbcTemplate.queryForObject("""
+				SELECT minimum_booking_notice_minutes
+				FROM slots
+				WHERE id = ?
+				""", Integer.class, slot.getId());
+
+		assertNull(persistedMinutes);
+
+		Long slotId = slot.getId();
+
+		entityManager.clear();
+
+		AvailabilitySlot restored = slotRepository.findById(slotId).orElseThrow();
+
+		assertEquals(Duration.ofHours(2), restored.getEffectiveMinimumBookingNotice());
 	}
 }

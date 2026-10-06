@@ -284,13 +284,53 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 			AvailabilitySlot actualSlot = slotRepository.findById(slotId).orElseThrow();
 
 			assertEquals(ReservationStatus.EXPIRED, actualReservation.getStatus());
-
 			assertEquals(AvailabilityStatus.FREE, actualSlot.getAvailabilityStatus());
-
 			assertEquals(bookingsBefore, bookingRepository.count());
 		} finally {
 			allowExpirationCommit.countDown();
 			executor.shutdownNow();
 		}
+	}
+
+	@Test
+	void shouldConfirmActiveReservationAfterBookingDeadline() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-confirm-after-cutoff@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(specialistUser, "Anna", "AfterCutoff", Duration.ofHours(1),
+				Duration.ZERO);
+
+		specialist.approve();
+
+		specialist = specialistRepository.saveAndFlush(specialist);
+
+		User client = userRepository.saveAndFlush(new User("client-confirm-after-cutoff@example.com", "password-hash",
+				UserRole.CLIENT, UserStatus.ACTIVE));
+
+		LocalDateTime startTime = now.plusMinutes(59);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+
+		slot.reserve();
+
+		slot = slotRepository.saveAndFlush(slot);
+
+		Reservation reservation = new Reservation(client, slot, now.minusMinutes(5), now.plusMinutes(5));
+
+		reservation = reservationRepository.saveAndFlush(reservation);
+
+		assertTrue(now.isAfter(slot.getBookingDeadline()));
+
+		Booking booking = bookingService.confirmReservation(reservation.getId(), client.getId());
+
+		Reservation restoredReservation = reservationRepository.findById(reservation.getId()).orElseThrow();
+
+		AvailabilitySlot restoredSlot = slotRepository.findById(slot.getId()).orElseThrow();
+
+		assertEquals(ReservationStatus.CONFIRMED, restoredReservation.getStatus());
+		assertEquals(AvailabilityStatus.BOOKED, restoredSlot.getAvailabilityStatus());
+		assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
 	}
 }

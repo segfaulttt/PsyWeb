@@ -245,4 +245,38 @@ public class ReservationServiceIntegrationTest extends PostgreSQLIntegrationTest
 		assertNull(result.getCancellationInitiator());
 		assertNull(result.getCancellationReason());
 	}
+
+	@Test
+	void shouldRejectReservationAfterBookingDeadline() {
+		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+
+		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-deadline@example.com",
+				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = specialistRepository
+				.saveAndFlush(new Specialist(specialistUser, "Anna", "Deadline", Duration.ofHours(2), Duration.ZERO));
+
+		User client = userRepository.saveAndFlush(new User("client-reservation-deadline@example.com", "password-hash",
+				UserRole.CLIENT, UserStatus.ACTIVE));
+
+		AvailabilitySlot slot = slotRepository
+				.saveAndFlush(new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2)));
+
+		// deadline = start - 2h
+		// = now - 1h
+		// то есть cutoff уже прошел
+
+		long reservationsBefore = reservationRepository.count();
+
+		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
+				() -> reservationService.createReservation(client.getId(), slot.getId()));
+
+		assertEquals("Slot is no longer bookable", exception.getMessage());
+
+		assertEquals(reservationsBefore, reservationRepository.count());
+
+		AvailabilitySlot restoredSlot = slotRepository.findById(slot.getId()).orElseThrow();
+
+		assertEquals(AvailabilityStatus.FREE, restoredSlot.getAvailabilityStatus());
+	}
 }

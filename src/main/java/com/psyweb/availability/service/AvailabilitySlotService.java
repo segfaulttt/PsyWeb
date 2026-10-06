@@ -79,6 +79,11 @@ public class AvailabilitySlotService {
 			throw e;
 		}
 	}
+	
+	@Transactional
+	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
+		return createSlot(specialistId, startTime, endTime, null);
+	}
 
 	private boolean isSlotOverlapConstraintViolation(DataIntegrityViolationException exception) {
 

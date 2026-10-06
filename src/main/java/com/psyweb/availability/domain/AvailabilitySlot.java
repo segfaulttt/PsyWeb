@@ -61,6 +61,10 @@ public class AvailabilitySlot {
 
 	protected AvailabilitySlot() {
 	}
+	
+	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
+		this(specialist, startTime, endTime, null);
+	}
 
 	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime,
 			Duration minimumBookingNoticeOverride) {
@@ -136,13 +140,13 @@ public class AvailabilitySlot {
 		return this.reason;
 	}
 
-	public Duration getEffectiveMinimumBookingNoticeOverride() {
+	public Duration getEffectiveMinimumBookingNotice() {
 		return minimumBookingNoticeOverride != null ? minimumBookingNoticeOverride
 				: specialist.getMinimumBookingNotice();
 	}
 
 	public LocalDateTime getBookingDeadline() {
-		return startTime.minus(getEffectiveMinimumBookingNoticeOverride());
+		return startTime.minus(getEffectiveMinimumBookingNotice());
 	}
 
 	public void reserve() {

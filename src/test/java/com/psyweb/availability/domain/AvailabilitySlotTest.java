@@ -313,17 +313,19 @@ public class AvailabilitySlotTest {
 		slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		InvalidAvailabilitySlotStateException exception = assertThrows(InvalidAvailabilitySlotStateException.class,
-				() -> slot.cancel(now, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+				() -> slot.cancel(now, CancellationInitiator.SPECIALIST,
+						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
 
 		assertEquals("Cannot cancel slot with status CANCELLED", exception.getMessage());
 		assertEquals(AvailabilityStatus.CANCELLED, slot.getAvailabilityStatus());
 	}
-	
+
 	@Test
 	public void shouldRejectCancellationWhenCancelledAtIsNull() {
-		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
-				() -> slot.cancel(null, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
-		
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> slot.cancel(null, CancellationInitiator.SPECIALIST,
+						CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
+
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
@@ -331,12 +333,12 @@ public class AvailabilitySlotTest {
 		assertNull(slot.getCancellationInitiator());
 		assertNull(slot.getCancellationReason());
 	}
-	
+
 	@Test
 	public void shouldRejectCancellationWhenInitiatorIsNull() {
-		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slot.cancel(now, null, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY));
-		
+
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
@@ -344,12 +346,12 @@ public class AvailabilitySlotTest {
 		assertNull(slot.getCancellationInitiator());
 		assertNull(slot.getCancellationReason());
 	}
-	
+
 	@Test
 	public void shouldRejectCancellationWhenReasonIsNull() {
-		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class, 
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slot.cancel(now, CancellationInitiator.SPECIALIST, null));
-		
+
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
 		assertEquals("Cancellation metadata cannot be null", exception.getMessage());
 		assertEquals(AvailabilityStatus.FREE, slot.getAvailabilityStatus());
@@ -357,4 +359,88 @@ public class AvailabilitySlotTest {
 		assertNull(slot.getCancellationInitiator());
 		assertNull(slot.getCancellationReason());
 	}
+
+	@Test
+	void shouldUseSpecialistMinimumBookingNoticeWhenOverrideIsNull() {
+		User user = new User("specialist-default@example.com", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "Default", Duration.ofHours(2), Duration.ZERO);
+
+		LocalDateTime start = now.plusHours(3);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1));
+
+		assertEquals(Duration.ofHours(2), slot.getEffectiveMinimumBookingNotice());
+
+		assertEquals(start.minusHours(2), slot.getBookingDeadline());
+	}
+
+	@Test
+	void shouldUseSlotMinimumBookingNoticeOverride() {
+		User user = new User("specialist-override@example.com", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "Override", Duration.ofHours(2), Duration.ZERO);
+
+		LocalDateTime start = now.plusHours(3);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(30));
+
+		assertEquals(Duration.ofMinutes(30), slot.getEffectiveMinimumBookingNotice());
+
+		assertEquals(start.minusMinutes(30), slot.getBookingDeadline());
+	}
+
+	@Test
+	void shouldAllowZeroMinimumBookingNoticeOverride() {
+		User user = new User("specialist-zero@example.com", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
+
+		Specialist specialist = new Specialist(user, "Anna", "Zero", Duration.ofHours(2), Duration.ZERO);
+
+		LocalDateTime start = now.plusHours(1);
+
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ZERO);
+
+		assertEquals(Duration.ZERO, slot.getEffectiveMinimumBookingNotice());
+
+		assertEquals(start, slot.getBookingDeadline());
+	}
+
+	@Test
+	void shouldRejectNegativeMinimumBookingNoticeOverride() {
+		Specialist specialist = mock(Specialist.class);
+
+		LocalDateTime start = now.plusHours(1);
+
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(-1)));
+
+		assertEquals("Minimum booking notice override cannot be negative", exception.getMessage());
+	}
+
+	@Test
+	void shouldRejectMinimumBookingNoticeOverrideWithPartialMinute() {
+		Specialist specialist = mock(Specialist.class);
+
+		LocalDateTime start = now.plusHours(1);
+
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofSeconds(30)));
+
+		assertEquals("Minimum booking notice override must contain whole minutes", exception.getMessage());
+	}
+
+	@Test
+	void shouldRejectMinimumBookingNoticeOverrideOutsideIntegerRange() {
+		Specialist specialist = mock(Specialist.class);
+
+		LocalDateTime start = now.plusHours(1);
+
+		Duration tooLarge = Duration.ofMinutes((long) Integer.MAX_VALUE + 1);
+
+		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
+				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), tooLarge));
+
+		assertEquals("Minimum booking notice override exceeds supported range", exception.getMessage());
+	}
+
 }

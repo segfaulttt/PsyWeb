@@ -195,9 +195,6 @@ public class AvailabilitySlotService {
 		validateSlotId(slotId);
 		AvailabilitySlot slot = slotRepository.findForUpdateById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
-		if (slot.getAvailabilityStatus() != AvailabilityStatus.FREE) {
-			throw new InvalidAvailabilitySlotStateException("Slot must have status 'FREE'");
-		}
 
 		LocalDateTime now = LocalDateTime.now(clock);
 		LocalDateTime bookingDeadline = slot.getBookingDeadline();

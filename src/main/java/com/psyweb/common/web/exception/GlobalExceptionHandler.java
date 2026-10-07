@@ -2,11 +2,17 @@ package com.psyweb.common.web.exception;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,6 +24,7 @@ import com.psyweb.common.exception.InvalidStateException;
 import com.psyweb.common.exception.NotFoundException;
 import com.psyweb.common.exception.ValidationException;
 import com.psyweb.common.web.dto.ApiError;
+import com.psyweb.common.web.dto.ValidationApiError;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -29,10 +36,9 @@ public class GlobalExceptionHandler {
 	public GlobalExceptionHandler(Clock clock) {
 		this.clock = clock;
 	}
-	
+
 	private ApiError createApiError(BaseDomainException exception, HttpServletRequest request) {
-		return new ApiError(exception.code(), exception.getMessage(), request.getRequestURI(),
-				Instant.now(clock));
+		return new ApiError(exception.code(), exception.getMessage(), request.getRequestURI(), Instant.now(clock));
 	}
 
 	@ExceptionHandler(NotFoundException.class)
@@ -78,5 +84,29 @@ public class GlobalExceptionHandler {
 		ApiError error = new ApiError("INTERNAL_SERVER_ERROR", "Internal server error", request.getRequestURI(),
 				Instant.now(clock));
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+	}
+
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ValidationApiError> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
+			HttpServletRequest request) {
+		List<FieldError> errors = exception.getBindingResult().getFieldErrors();
+
+		Map<String, List<String>> fieldErrors = new HashMap<>();
+
+		for (FieldError fieldError : errors) {
+			String field = fieldError.getField();
+			String message = fieldError.getDefaultMessage();
+			List<String> messages = fieldErrors.get(field);
+			if (messages == null) {
+				messages = new ArrayList<>();
+				fieldErrors.put(field, messages);
+			}
+			messages.add(message);
+		}
+
+		ValidationApiError error = new ValidationApiError("VALIDATION_ERROR", "Request validation failed", request.getRequestURI(),
+				Instant.now(clock), fieldErrors);
+
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
 	}
 }

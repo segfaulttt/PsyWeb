@@ -6,8 +6,6 @@ import com.psyweb.client.domain.Client;
 import com.psyweb.client.repository.ClientRepository;
 import com.psyweb.user.service.UserService;
 
-import jakarta.transaction.Transactional;
-
 import com.psyweb.client.exception.ClientNotFoundException;
 import com.psyweb.client.exception.InvalidClientDataException;
 
@@ -15,7 +13,7 @@ import com.psyweb.client.exception.InvalidClientDataException;
 @Service
 public class ClientService {
 	private final ClientRepository clientRepository;
-	private UserService userService;
+	private final UserService userService;
 	
 	public ClientService(ClientRepository clientRepository, UserService userService) {
 		this.clientRepository = clientRepository;
@@ -33,9 +31,4 @@ public class ClientService {
 		userService.getActiveUser(clientId);
 		return getClient(clientId);
 	}
-	
-//	@Transactional
-//	public Client createClient(User user, String firstName, String lastName) {
-//		
-//	}
 }

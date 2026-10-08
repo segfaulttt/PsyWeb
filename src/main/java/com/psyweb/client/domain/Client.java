@@ -3,21 +3,25 @@ package com.psyweb.client.domain;
 import com.psyweb.client.exception.InvalidClientDataException;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
-import com.psyweb.user.domain.UserStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "clients")
 public class Client {
 	@Id
 	private Long id;
 
 	@MapsId
-	@OneToOne
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
 	private User user;
 
 	@Column(name = "first_name", nullable = false)
@@ -32,7 +36,7 @@ public class Client {
 		if (user == null) {
 			throw new InvalidClientDataException("User cannot be null");
 		}
-		if (!user.getRole().equals(UserRole.CLIENT)) {
+		if (user.getRole() != UserRole.CLIENT) {
 			throw new InvalidClientDataException("User must have CLIENT role");
 		}
 		validateFirstName(firstName);
@@ -62,7 +66,7 @@ public class Client {
 		return this.firstName;
 	}
 
-	public String getFLastName() {
+	public String getLastName() {
 		return this.lastName;
 	}
 	

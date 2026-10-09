@@ -1,12 +1,13 @@
 package com.psyweb.specialist.web.mapper;
 
-import com.psyweb.common.persistence.DurationMinutesConverter;
+import org.springframework.stereotype.Component;
+
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.web.dto.response.SpecialistBookingSettingsResponse;
 import com.psyweb.specialist.web.dto.response.SpecialistProfileResponse;
 
+@Component
 public class SpecialistWebMapper {
-	private final DurationMinutesConverter converter = new DurationMinutesConverter();
 	public SpecialistProfileResponse toProfileResponse(Specialist specialist) {
 		return new SpecialistProfileResponse(
 				specialist.getId(),
@@ -17,7 +18,7 @@ public class SpecialistWebMapper {
 	
 	public SpecialistBookingSettingsResponse toBookingSettingsResponse(Specialist specialist) {
 		return new SpecialistBookingSettingsResponse(
-				converter.convertToDatabaseColumn(specialist.getMinimumBookingNotice()),
-				converter.convertToDatabaseColumn(specialist.getClientCancellationNotice()));
+				specialist.getMinimumBookingNotice().toMinutes(),
+				specialist.getClientCancellationNotice().toMinutes());
 	}
 }

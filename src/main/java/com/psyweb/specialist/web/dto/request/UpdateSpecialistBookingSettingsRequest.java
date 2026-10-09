@@ -1,14 +1,14 @@
 package com.psyweb.specialist.web.dto.request;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 public record UpdateSpecialistBookingSettingsRequest (
-		@NotNull(message = "Minimum booking notice cannot be null")
-	    @Positive(message = "Minimum booking notice must be positive")
-		Integer minimumBookingNotice,
+		@NotNull(message = "Minimum booking notice minutes cannot be null")
+	    @PositiveOrZero(message = "Minimum booking notice minutes must be positive")
+		Integer minimumBookingNoticeMinutes,
 		
-		@NotNull(message = "Client cancellation notice cannot be null")
-	    @Positive(message = "Client cancellation notice must be positive")
-		Integer clientCancellationNotice) {
+		@NotNull(message = "Client cancellation notice minutes cannot be null")
+	    @PositiveOrZero(message = "Client cancellation notice minutes must be positive")
+		Integer clientCancellationNoticeMinutes) {
 }

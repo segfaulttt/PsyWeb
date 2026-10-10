@@ -1,6 +1,6 @@
 package com.psyweb.booking.repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,7 +53,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>{
 		    nativeQuery = true
 		)
 	List<Reservation> findExpiredBatchForUpdateSkipLocked(
-			@Param("now")LocalDateTime now, 
+			@Param("now")Instant now, 
 			@Param("batchSize")Integer batchSize);
 	
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

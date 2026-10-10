@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,7 +31,7 @@ public class BookingTest {
 	}
 
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 	private Booking booking;
 
 	@BeforeEach
@@ -40,14 +39,14 @@ public class BookingTest {
 		User client = new User("example@email.ru", "password", UserRole.CLIENT, UserStatus.ACTIVE);
 		User spec = new User("email@gmail.com", "password", UserRole.SPECIALIST, UserStatus.ACTIVE);
 		Specialist specialist = new Specialist(spec, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
-		Reservation reservation = new Reservation(client, slot, now, now.plusMinutes(2));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now, now.plus(Duration.ofHours(1)));
+		Reservation reservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(2)));
 
 		slot.reserve();
 		slot.confirmBooking();
 		reservation.confirm(now);
 
-		booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(10));
+		booking = new Booking(client, specialist, slot, reservation, now.minus(Duration.ofMinutes(10)));
 
 	}
 
@@ -117,9 +116,9 @@ public class BookingTest {
 		Specialist anotherSpecialist = new Specialist(anotherSpecialistUser, "Kate", "Jones", Duration.ZERO,
 				Duration.ZERO);
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now, now.plus(Duration.ofHours(1)));
 
-		AvailabilitySlot anotherSlot = new AvailabilitySlot(specialist, now.plusHours(2), now.plusHours(3));
+		AvailabilitySlot anotherSlot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(2)), now.plus(Duration.ofHours(3)));
 
 		ReflectionTestUtils.setField(client, "id", 1L);
 		ReflectionTestUtils.setField(anotherClient, "id", 2L);
@@ -128,7 +127,7 @@ public class BookingTest {
 		ReflectionTestUtils.setField(slot, "id", 100L);
 		ReflectionTestUtils.setField(anotherSlot, "id", 101L);
 
-		Reservation reservation = new Reservation(client, slot, now, now.plusMinutes(10));
+		Reservation reservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(10)));
 
 		reservation.confirm(now);
 

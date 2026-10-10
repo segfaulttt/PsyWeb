@@ -10,7 +10,8 @@ import static org.mockito.Mockito.doThrow;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -71,7 +72,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	public void shouldConfirmReservationAndCreateBookingAtomically() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-confirm-success@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -82,14 +83,14 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		User client = userRepository.saveAndFlush(
 				new User("client-confirm-success@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime startTime = LocalDateTime.now().plusDays(1);
+		Instant startTime = clock.instant().plus(Duration.ofDays(1));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 		slot.reserve();
 		slotRepository.saveAndFlush(slot);
 
 		Reservation reservation = reservationRepository
-				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(10)));
+				.saveAndFlush(new Reservation(client, slot, now, now.plus(Duration.ofMinutes(10))));
 
 		Booking result = bookingService.confirmReservation(reservation.getId(), client.getId());
 
@@ -111,7 +112,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	public void shouldRollbackConfirmationWhenBookingCreationFails() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-confirm-rollback@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -122,14 +123,14 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		User client = userRepository.saveAndFlush(
 				new User("client-confirm-rollback@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime startTime = LocalDateTime.now().plusDays(2);
+		Instant startTime = clock.instant().plus(Duration.ofDays(2));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 		slot.reserve();
 		slotRepository.saveAndFlush(slot);
 
 		Reservation reservation = reservationRepository
-				.saveAndFlush(new Reservation(client, slot, now, now.plusMinutes(10)));
+				.saveAndFlush(new Reservation(client, slot, now, now.plus(Duration.ofMinutes(10))));
 
 		long bookingsBefore = bookingRepository.count();
 
@@ -149,7 +150,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	public void shouldPersistExpirationAndReleaseSlotWhenConfirmationIsRejected() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-expired-confirmation@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -161,13 +162,13 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		User client = userRepository.saveAndFlush(new User("client-expired-confirmation@example.com", "password-hash",
 				UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime startTime = now.plusDays(1);
+		Instant startTime = now.plus(Duration.ofDays(1));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 		slot.reserve();
 		slotRepository.saveAndFlush(slot);
 
-		Reservation reservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
+		Reservation reservation = new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10)));
 
 		reservationRepository.saveAndFlush(reservation);
 
@@ -200,7 +201,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	void shouldRejectConfirmationWhenExpirationWinsRace() throws Exception {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-expiration-race@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -213,15 +214,15 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		User client = userRepository.saveAndFlush(
 				new User("client-expiration-race@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime slotStart = now.plusDays(1);
+		Instant slotStart = now.plus(Duration.ofDays(1));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, slotStart, slotStart.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, slotStart, slotStart.plus(Duration.ofHours(1)));
 
 		slot.reserve();
 		slot = slotRepository.saveAndFlush(slot);
 
 		Reservation reservation = reservationRepository
-				.saveAndFlush(new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10)));
+				.saveAndFlush(new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10))));
 
 		Long reservationId = reservation.getId();
 		Long slotId = slot.getId();
@@ -294,7 +295,7 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	void shouldConfirmActiveReservationAfterBookingDeadline() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-confirm-after-cutoff@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -309,15 +310,15 @@ public class BookingServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		User client = userRepository.saveAndFlush(new User("client-confirm-after-cutoff@example.com", "password-hash",
 				UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime startTime = now.plusMinutes(59);
+		Instant startTime = now.plus(Duration.ofMinutes(59));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 
 		slot.reserve();
 
 		slot = slotRepository.saveAndFlush(slot);
 
-		Reservation reservation = new Reservation(client, slot, now.minusMinutes(5), now.plusMinutes(5));
+		Reservation reservation = new Reservation(client, slot, now.minus(Duration.ofMinutes(5)), now.plus(Duration.ofMinutes(5)));
 
 		reservation = reservationRepository.saveAndFlush(reservation);
 

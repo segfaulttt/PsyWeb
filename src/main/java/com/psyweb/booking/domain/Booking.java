@@ -1,6 +1,6 @@
 package com.psyweb.booking.domain;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.booking.exception.InvalidBookingDataException;
@@ -51,10 +51,10 @@ public class Booking {
 	private BookingStatus status;
 
 	@Column(name = "created_at", nullable = false)
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 
 	@Column(name = "cancelled_at")
-	private LocalDateTime cancelledAt;
+	private Instant cancelledAt;
 
 	@Column(name = "cancellation_initiator")
 	@Enumerated(EnumType.STRING)
@@ -68,7 +68,7 @@ public class Booking {
 	}
 
 	public Booking(User client, Specialist specialist, AvailabilitySlot slot, Reservation reservation,
-			LocalDateTime createdAt) {
+			Instant createdAt) {
 		if (client == null) {
 			throw new InvalidBookingDataException("Client cannot be blank");
 		}
@@ -101,7 +101,7 @@ public class Booking {
 		this.status = BookingStatus.CONFIRMED;
 	}
 
-	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
+	private void validateCancellation(Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidBookingDataException("Cancellation metadata cannot be null");
@@ -132,11 +132,11 @@ public class Booking {
 		return this.status;
 	}
 
-	public LocalDateTime getCreatedAt() {
+	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
 
-	public LocalDateTime getCancelledAt() {
+	public Instant getCancelledAt() {
 		return this.cancelledAt;
 	}
 
@@ -148,7 +148,7 @@ public class Booking {
 		return this.reason;
 	}
 
-	public void cancel(LocalDateTime time, CancellationInitiator initiator, CancellationReason reason) {
+	public void cancel(Instant time, CancellationInitiator initiator, CancellationReason reason) {
 		if (this.status != BookingStatus.CONFIRMED) {
 			throw new InvalidBookingStateException("Cannot cancel booking");
 		}

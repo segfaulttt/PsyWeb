@@ -12,7 +12,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,7 +60,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 	@Autowired
 	private ReservationRepository reservationRepository;
 
-	private TestContext createTestContext(String suffix, LocalDateTime now) {
+	private TestContext createTestContext(String suffix, Instant now) {
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-" + suffix + "@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -68,14 +70,14 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		User client = userRepository.saveAndFlush(
 				new User("client-" + suffix + "@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		return new TestContext(client, specialist, now.plusDays(1));
+		return new TestContext(client, specialist, now.plus(Duration.ofDays(1)));
 	}
 
-	private Reservation persistActiveReservation(TestContext context, int slotNumber, LocalDateTime createdAt,
-			LocalDateTime expiresAt) {
-		LocalDateTime slotStart = context.slotBase().plusHours(slotNumber * 2L);
+	private Reservation persistActiveReservation(TestContext context, int slotNumber, Instant createdAt,
+			Instant expiresAt) {
+		Instant slotStart = context.slotBase().plus(Duration.ofHours(slotNumber * 2L));
 
-		AvailabilitySlot slot = new AvailabilitySlot(context.specialist(), slotStart, slotStart.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(context.specialist(), slotStart, slotStart.plus(Duration.ofHours(1)));
 
 		slot.reserve();
 		slot = slotRepository.saveAndFlush(slot);
@@ -83,12 +85,12 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		return reservationRepository.saveAndFlush(new Reservation(context.client(), slot, createdAt, expiresAt));
 	}
 
-	private record TestContext(User client, Specialist specialist, LocalDateTime slotBase) {
+	private record TestContext(User client, Specialist specialist, Instant slotBase) {
 	}
 
 	@Test
 	void shouldRejectSecondActiveReservationForSameSlot() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		User specialistUser = userRepository.saveAndFlush(
 				new User("specialist@example.com", "password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
 
@@ -98,16 +100,16 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		User client = userRepository
 				.saveAndFlush(new User("client@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime startTime = LocalDateTime.now().plusDays(1);
+		Instant startTime = clock.instant().plus(Duration.ofDays(1));
 
 		AvailabilitySlot slot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
+				.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1))));
 
-		Reservation firstReservation = new Reservation(client, slot, now, now.plusMinutes(5));
+		Reservation firstReservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(5)));
 
 		reservationRepository.saveAndFlush(firstReservation);
 
-		Reservation secondReservation = new Reservation(client, slot, now, now.plusMinutes(5));
+		Reservation secondReservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(5)));
 
 		DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
 				() -> reservationRepository.saveAndFlush(secondReservation));
@@ -130,7 +132,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	void shouldFindOnlyExpiredActiveReservations() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-expiration-query@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -141,31 +143,31 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		User client = userRepository.saveAndFlush(
 				new User("client-expiration-query@example.com", "password-hash", UserRole.CLIENT, UserStatus.ACTIVE));
 
-		LocalDateTime firstSlotStart = now.plusDays(1);
+		Instant firstSlotStart = now.plus(Duration.ofDays(1));
 
 		AvailabilitySlot expiredSlot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, firstSlotStart, firstSlotStart.plusHours(1)));
+				.saveAndFlush(new AvailabilitySlot(specialist, firstSlotStart, firstSlotStart.plus(Duration.ofHours(1))));
 
 		AvailabilitySlot boundarySlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(2), firstSlotStart.plusHours(3)));
+				new AvailabilitySlot(specialist, firstSlotStart.plus(Duration.ofHours(2)), firstSlotStart.plus(Duration.ofHours(3))));
 
 		AvailabilitySlot futureSlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(4), firstSlotStart.plusHours(5)));
+				new AvailabilitySlot(specialist, firstSlotStart.plus(Duration.ofHours(4)), firstSlotStart.plus(Duration.ofHours(5))));
 
 		AvailabilitySlot cancelledSlot = slotRepository.saveAndFlush(
-				new AvailabilitySlot(specialist, firstSlotStart.plusHours(6), firstSlotStart.plusHours(7)));
+				new AvailabilitySlot(specialist, firstSlotStart.plus(Duration.ofHours(6)), firstSlotStart.plus(Duration.ofHours(7))));
 
-		Reservation expiredReservation = new Reservation(client, expiredSlot, now.minusMinutes(20),
-				now.minusMinutes(10));
+		Reservation expiredReservation = new Reservation(client, expiredSlot, now.minus(Duration.ofMinutes(20)),
+				now.minus(Duration.ofMinutes(10)));
 
-		Reservation boundaryReservation = new Reservation(client, boundarySlot, now.minusMinutes(10), now);
+		Reservation boundaryReservation = new Reservation(client, boundarySlot, now.minus(Duration.ofMinutes(10)), now);
 
-		Reservation futureReservation = new Reservation(client, futureSlot, now, now.plusMinutes(10));
+		Reservation futureReservation = new Reservation(client, futureSlot, now, now.plus(Duration.ofMinutes(10)));
 
-		Reservation cancelledReservation = new Reservation(client, cancelledSlot, now.minusMinutes(20),
-				now.minusMinutes(10));
+		Reservation cancelledReservation = new Reservation(client, cancelledSlot, now.minus(Duration.ofMinutes(20)),
+				now.minus(Duration.ofMinutes(10)));
 
-		cancelledReservation.cancel(now.minusMinutes(15), CancellationInitiator.CLIENT,
+		cancelledReservation.cancel(now.minus(Duration.ofMinutes(15)), CancellationInitiator.CLIENT,
 				CancellationReason.CLIENT_REQUEST);
 
 		reservationRepository.saveAllAndFlush(
@@ -180,10 +182,10 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	void shouldIncludeReservationWhenExpiresAtEqualsNow() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		TestContext context = createTestContext("boundary", now);
 
-		Reservation boundaryReservation = persistActiveReservation(context, 1, now.minusMinutes(10), now);
+		Reservation boundaryReservation = persistActiveReservation(context, 1, now.minus(Duration.ofMinutes(10)), now);
 
 		List<Reservation> result = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100);
 
@@ -193,18 +195,18 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	void shouldReturnExpiredReservationsOrderedByExpiresAtAndId() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		TestContext context = createTestContext("ordering", now);
 
-		Reservation newest = persistActiveReservation(context, 1, now.minusMinutes(30), now.minusMinutes(5));
+		Reservation newest = persistActiveReservation(context, 1, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(5)));
 
-		Reservation oldest = persistActiveReservation(context, 2, now.minusMinutes(30), now.minusMinutes(20));
+		Reservation oldest = persistActiveReservation(context, 2, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(20)));
 
-		Reservation sameExpirationFirst = persistActiveReservation(context, 3, now.minusMinutes(30),
-				now.minusMinutes(10));
+		Reservation sameExpirationFirst = persistActiveReservation(context, 3, now.minus(Duration.ofMinutes(30)),
+				now.minus(Duration.ofMinutes(10)));
 
-		Reservation sameExpirationSecond = persistActiveReservation(context, 4, now.minusMinutes(30),
-				now.minusMinutes(10));
+		Reservation sameExpirationSecond = persistActiveReservation(context, 4, now.minus(Duration.ofMinutes(30)),
+				now.minus(Duration.ofMinutes(10)));
 
 		List<Long> resultIds = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100).stream()
 				.map(Reservation::getId).toList();
@@ -215,14 +217,14 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	void shouldLimitExpiredReservationsToBatchSize() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		TestContext context = createTestContext("batch-limit", now);
 
-		Reservation first = persistActiveReservation(context, 1, now.minusMinutes(30), now.minusMinutes(20));
+		Reservation first = persistActiveReservation(context, 1, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(20)));
 
-		Reservation second = persistActiveReservation(context, 2, now.minusMinutes(30), now.minusMinutes(15));
+		Reservation second = persistActiveReservation(context, 2, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(15)));
 
-		persistActiveReservation(context, 3, now.minusMinutes(30), now.minusMinutes(10));
+		persistActiveReservation(context, 3, now.minus(Duration.ofMinutes(30)), now.minus(Duration.ofMinutes(10)));
 
 		List<Reservation> result = reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 2);
 
@@ -232,11 +234,11 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	public void shouldPersistReservationCancellationMetadata() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime startTime = now.plusDays(1);
-		LocalDateTime createdAt = now.minusMinutes(5);
-		LocalDateTime expiresAt = now.plusMinutes(10);
-		LocalDateTime cancelledAt = now;
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant startTime = now.plus(Duration.ofDays(1));
+		Instant createdAt = now.minus(Duration.ofMinutes(5));
+		Instant expiresAt = now.plus(Duration.ofMinutes(10));
+		Instant cancelledAt = now;
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-metadata@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -247,7 +249,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		User client = userRepository.saveAndFlush(new User("client-reservation-metadata@example.com", "password-hash",
 				UserRole.CLIENT, UserStatus.ACTIVE));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 
 		slot.reserve();
 		slot = slotRepository.saveAndFlush(slot);
@@ -273,11 +275,11 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 
 	@Test
 	public void shouldRejectPartialReservationCancellationMetadata() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime startTime = now.plusDays(1);
-		LocalDateTime createdAt = now.minusMinutes(5);
-		LocalDateTime expiresAt = now.plusMinutes(10);
-		LocalDateTime cancelledAt = now;
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant startTime = now.plus(Duration.ofDays(1));
+		Instant createdAt = now.minus(Duration.ofMinutes(5));
+		Instant expiresAt = now.plus(Duration.ofMinutes(10));
+		Instant cancelledAt = now;
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-reservation-partial@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -288,7 +290,7 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 		User client = userRepository.saveAndFlush(new User("client-reservation-partial@example.com", "password-hash",
 				UserRole.CLIENT, UserStatus.ACTIVE));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 
 		slot.reserve();
 		slot = slotRepository.saveAndFlush(slot);
@@ -302,6 +304,6 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 				UPDATE reservations
 				SET cancelled_at = ?
 				WHERE id = ?
-				""", cancelledAt, reservationId));
+				""", cancelledAt.atOffset(ZoneOffset.UTC), reservationId));
 	}
 }

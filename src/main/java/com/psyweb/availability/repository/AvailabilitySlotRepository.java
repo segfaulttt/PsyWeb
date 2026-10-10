@@ -1,6 +1,6 @@
 package com.psyweb.availability.repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,8 +22,8 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
 			+ "WHERE s.specialist.id = :specialistId "
 			+ "AND s.availabilityStatus <> com.psyweb.availability.domain.AvailabilityStatus.CANCELLED "
 			+ "AND s.startTime < :newEnd " + "AND s.endTime > :newStart")
-	boolean existsOverlappingSlot(@Param("specialistId") Long specialistId, @Param("newStart") LocalDateTime newStart,
-			@Param("newEnd") LocalDateTime newEnd);
+	boolean existsOverlappingSlot(@Param("specialistId") Long specialistId, @Param("newStart") Instant newStart,
+			@Param("newEnd") Instant newEnd);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<AvailabilitySlot> findForUpdateById(Long slotId);
@@ -37,5 +37,5 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
 			+ "ORDER BY s.id")
 	List<AvailabilitySlot> findFutureForUpdateBySpecialistId(
 			@Param("specialistId") Long specialistId,
-			@Param("suspendedAt")LocalDateTime suspendedAt);
+			@Param("suspendedAt")Instant suspendedAt);
 }

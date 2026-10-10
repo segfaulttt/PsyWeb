@@ -4,7 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -54,17 +55,17 @@ public class AvailabilitySlotOverlapConcurrencyIntegrationTest extends PostgreSQ
 
 		Long specialistId = specialist.getId();
 
-		LocalDateTime start = LocalDateTime.now().withNano(0).plusDays(30);
+		Instant start = Instant.now().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(30));
 
 		CyclicBarrier barrier = new CyclicBarrier(2);
 		ExecutorService executor = Executors.newFixedThreadPool(2);
 
 		try {
 			Future<Void> first = executor
-					.submit(() -> insertSlotInIndependentTransaction(specialistId, start, start.plusHours(1), barrier));
+					.submit(() -> insertSlotInIndependentTransaction(specialistId, start, start.plus(Duration.ofHours(1)), barrier));
 
 			Future<Void> second = executor.submit(() -> insertSlotInIndependentTransaction(specialistId,
-					start.plusMinutes(30), start.plusHours(1).plusMinutes(30), barrier));
+					start.plus(Duration.ofMinutes(30)), start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30)), barrier));
 
 			int successfulAttempts = 0;
 			int failedAttempts = 0;
@@ -90,7 +91,7 @@ public class AvailabilitySlotOverlapConcurrencyIntegrationTest extends PostgreSQ
 		}
 	}
 
-	private Void insertSlotInIndependentTransaction(Long specialistId, LocalDateTime start, LocalDateTime end,
+	private Void insertSlotInIndependentTransaction(Long specialistId, Instant start, Instant end,
 			CyclicBarrier barrier) {
 
 		TransactionTemplate transaction = new TransactionTemplate(transactionManager);

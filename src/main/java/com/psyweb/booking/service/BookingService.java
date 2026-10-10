@@ -1,8 +1,8 @@
 package com.psyweb.booking.service;
 
 import java.time.Clock;
+import java.time.Instant;
 //import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -66,7 +66,7 @@ public class BookingService {
 		}
 
 		Reservation reservation = reservationService.getReservationForUpdate(reservationId);
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 
 		if (!reservation.getClientId().equals(clientId)) {
 			throw new ReservationOwnershipException("Reservation does not belong to this client");
@@ -116,13 +116,13 @@ public class BookingService {
 
 	// update booking state:
 	
-	private void cancelBooking(Booking booking, LocalDateTime cancelledAt, CancellationInitiator initiator,
+	private void cancelBooking(Booking booking, Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		booking.cancel(cancelledAt, initiator, reason);
 	}
 	
 	@Transactional
-	public void cancelConfirmedBookingForSlotRemoval(Long slotId, LocalDateTime now) {
+	public void cancelConfirmedBookingForSlotRemoval(Long slotId, Instant now) {
 		if (slotId == null) {
 			throw new InvalidBookingDataException("Slot id cannot be null");
 		}
@@ -136,7 +136,7 @@ public class BookingService {
 	}
 
 	@Transactional
-	public void cancelBookingByClient(Long bookingId, Long clientId, LocalDateTime cancelledAt) {
+	public void cancelBookingByClient(Long bookingId, Long clientId, Instant cancelledAt) {
 		if (bookingId == null) {
 			throw new InvalidBookingDataException("Booking id cannot be null");
 		}
@@ -171,7 +171,7 @@ public class BookingService {
 	}
 	
 	@Transactional
-	public void cancelConfirmedBookingForSpecialistSuspension(Long slotId, LocalDateTime suspendedAt) {
+	public void cancelConfirmedBookingForSpecialistSuspension(Long slotId, Instant suspendedAt) {
 		if (slotId == null) {
 			throw new InvalidBookingDataException("Slot id cannot be null"); 
 		}

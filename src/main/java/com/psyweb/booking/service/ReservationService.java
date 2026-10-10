@@ -1,7 +1,7 @@
 package com.psyweb.booking.service;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import org.hibernate.exception.ConstraintViolationException;
@@ -73,7 +73,7 @@ public class ReservationService {
 
 		try {
 			AvailabilitySlot slot = slotService.reserveSlot(slotId);
-			LocalDateTime now = LocalDateTime.now(clock);
+			Instant now = clock.instant();
 			Reservation reservation = new Reservation(user, slot, now, now.plus(reservationProperties.ttl()));
 			return reservationRepository.saveAndFlush(reservation);
 		} catch (DataIntegrityViolationException e) {
@@ -98,7 +98,7 @@ public class ReservationService {
 	}
 
 	@Transactional
-	public void cancelReservationByClient(Long reservationId, Long clientId, LocalDateTime cancelledAt,
+	public void cancelReservationByClient(Long reservationId, Long clientId, Instant cancelledAt,
 			CancellationReason reason) {
 		if (reservationId == null) {
 			throw new InvalidReservationDataException("Reservation id cannot be null");
@@ -114,7 +114,7 @@ public class ReservationService {
 		cancelReservation(reservation, cancelledAt, CancellationInitiator.CLIENT, reason);
 	}
 
-	private void cancelReservation(Reservation reservation, LocalDateTime cancelledAt, CancellationInitiator initiator,
+	private void cancelReservation(Reservation reservation, Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		if (reservation == null) {
 			throw new InvalidReservationDataException("Reservation cannot be null");
@@ -129,7 +129,7 @@ public class ReservationService {
 			throw new InvalidReservationDataException("Reservation id cannot be null");
 		}
 		Reservation reservation = loadReservationForUpdate(reservationId);
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		reservation.expire(now);
 		slotService.releaseReservation(reservation.getSlotId());
 
@@ -137,7 +137,7 @@ public class ReservationService {
 
 	@Transactional
 	public void expireExpiredReservations() {
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		List<Reservation> reservations = reservationRepository.findExpiredBatchForUpdateSkipLocked(now,
 				reservationProperties.expirationBatchSize());
 
@@ -173,7 +173,7 @@ public class ReservationService {
 		return reservation;
 	}
 
-	public void cancelActiveReservationForSlotRemoval(Long slotId, LocalDateTime cancelledAt) {
+	public void cancelActiveReservationForSlotRemoval(Long slotId, Instant cancelledAt) {
 		if (slotId == null) {
 			throw new InvalidReservationDataException("Slot id cannot be null");
 		}
@@ -186,7 +186,7 @@ public class ReservationService {
 	}
 
 	@Transactional
-	public void cancelActiveReservationForSpecialistSuspension(Long slotId, LocalDateTime suspendedAt) {
+	public void cancelActiveReservationForSpecialistSuspension(Long slotId, Instant suspendedAt) {
 		if (slotId == null) {
 			throw new InvalidReservationDataException("Slot id cannot be null");
 		}

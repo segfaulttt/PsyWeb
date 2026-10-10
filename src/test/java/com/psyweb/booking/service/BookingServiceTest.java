@@ -3,7 +3,6 @@ package com.psyweb.booking.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -55,7 +54,7 @@ public class BookingServiceTest {
 	private AvailabilitySlot slot;
 	private Reservation reservation;
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 
 	@Mock
 	BookingRepository bookingRepository;
@@ -83,9 +82,9 @@ public class BookingServiceTest {
 
 		specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
 
-		slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
+		slot = new AvailabilitySlot(specialist, now, now.plus(Duration.ofHours(1)));
 
-		reservation = new Reservation(client, slot, now, now.plusMinutes(2));
+		reservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(2)));
 
 		ReflectionTestUtils.setField(client, "id", 1L);
 		ReflectionTestUtils.setField(specialist, "id", 2L);
@@ -246,9 +245,9 @@ public class BookingServiceTest {
 	void shouldNotReleaseSlotWhenCancelThrowsException() {
 		Long bookingId = 1L;
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
-		LocalDateTime cancelledAt = slot.getStartTime().minusSeconds(1);
+		Instant cancelledAt = slot.getStartTime().minusSeconds(1);
 
-		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 		booking.complete();
@@ -279,7 +278,7 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
-		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+		cancelledBooking.cancel(now.plus(Duration.ofMinutes(1)), CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		List<Booking> bookings = List.of(completedBooking, cancelledBooking);
@@ -302,7 +301,7 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
-		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+		cancelledBooking.cancel(now.plus(Duration.ofMinutes(1)), CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		when(bookingRepository.findByClient_IdAndStatus(clientId, status)).thenReturn(List.of(cancelledBooking));
@@ -340,7 +339,7 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 2L);
-		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+		cancelledBooking.cancel(now.plus(Duration.ofMinutes(1)), CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		List<Booking> bookings = List.of(completedBooking, cancelledBooking);
@@ -363,7 +362,7 @@ public class BookingServiceTest {
 
 		Booking cancelledBooking = new Booking(client, specialist, slot, reservation, now);
 		ReflectionTestUtils.setField(cancelledBooking, "id", 1L);
-		cancelledBooking.cancel(now.plusMinutes(1), CancellationInitiator.SPECIALIST,
+		cancelledBooking.cancel(now.plus(Duration.ofMinutes(1)), CancellationInitiator.SPECIALIST,
 				CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
 		when(bookingRepository.findBySpecialist_IdAndStatus(specialistId, status))
@@ -418,14 +417,14 @@ public class BookingServiceTest {
 	void shouldCancelBookingBeforeSessionStart() {
 		Long bookingId = 1L;
 		Long clientId = client.getId();
-		LocalDateTime cancelledAt = slot.getStartTime().minusMinutes(1);
+		Instant cancelledAt = slot.getStartTime().minus(Duration.ofMinutes(1));
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
@@ -456,14 +455,14 @@ public class BookingServiceTest {
 	void shouldRejectClientCancellationWhenBookingBelongsToAnotherClient() {
 		Long bookingId = 1L;
 		Long anotherClientId = 999L;
-		LocalDateTime cancelledAt = slot.getStartTime().minusSeconds(1);
+		Instant cancelledAt = slot.getStartTime().minusSeconds(1);
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, cancelledAt.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
@@ -492,7 +491,7 @@ public class BookingServiceTest {
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
@@ -513,14 +512,14 @@ public class BookingServiceTest {
 	void shouldRejectClientCancellationAtSessionStart() {
 		Long bookingId = 1L;
 		Long clientId = client.getId();
-		LocalDateTime cancelledAt = slot.getStartTime();
+		Instant cancelledAt = slot.getStartTime();
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 
@@ -546,14 +545,14 @@ public class BookingServiceTest {
 	void shouldRejectClientCancellationAfterSessionStart() {
 		Long bookingId = 1L;
 		Long clientId = client.getId();
-		LocalDateTime cancelledAt = slot.getStartTime().plusMinutes(1);
+		Instant cancelledAt = slot.getStartTime().plus(Duration.ofMinutes(1));
 
 		ReflectionTestUtils.setField(reservation, "status", ReservationStatus.CONFIRMED);
 
 		slot.reserve();
 		slot.confirmBooking();
 
-		Booking booking = new Booking(client, specialist, slot, reservation, now.minusMinutes(1));
+		Booking booking = new Booking(client, specialist, slot, reservation, now.minus(Duration.ofMinutes(1)));
 
 		ReflectionTestUtils.setField(booking, "id", bookingId);
 

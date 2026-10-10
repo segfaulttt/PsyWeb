@@ -14,7 +14,6 @@ import static org.mockito.Mockito.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +49,7 @@ public class ReservationServiceTest {
 	private AvailabilitySlot secondSlot;
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
 
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 
 	@Mock
 	ReservationRepository reservationRepository;
@@ -72,16 +71,16 @@ public class ReservationServiceTest {
 
 		Specialist specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
 
-		slot = new AvailabilitySlot(specialist, now, now.plusHours(1));
+		slot = new AvailabilitySlot(specialist, now, now.plus(Duration.ofHours(1)));
 
-		reservation = new Reservation(client, slot, now, now.plusMinutes(2));
+		reservation = new Reservation(client, slot, now, now.plus(Duration.ofMinutes(2)));
 
 		ReflectionTestUtils.setField(client, "id", 1L);
 		ReflectionTestUtils.setField(slot, "id", 10L);
 		ReflectionTestUtils.setField(reservation, "id", 100L);
 
-		firstSlot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
-		secondSlot = new AvailabilitySlot(specialist, now.plusHours(3), now.plusHours(4));
+		firstSlot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(1)), now.plus(Duration.ofHours(2)));
+		secondSlot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(3)), now.plus(Duration.ofHours(4)));
 
 		ReflectionTestUtils.setField(firstSlot, "id", 20L);
 		ReflectionTestUtils.setField(secondSlot, "id", 30L);
@@ -111,7 +110,7 @@ public class ReservationServiceTest {
 		assertEquals(client.getId(), result.getClientId());
 		assertEquals(slot.getId(), result.getSlotId());
 		assertEquals(now, result.getCreatedAt());
-		assertEquals(now.plusMinutes(10), result.getExpiresAt());
+		assertEquals(now.plus(Duration.ofMinutes(10)), result.getExpiresAt());
 		verify(reservationRepository).saveAndFlush(any(Reservation.class));
 		verify(slotService).reserveSlot(slotId);
 	}
@@ -154,7 +153,7 @@ public class ReservationServiceTest {
 
 	@Test
 	void shouldExpireActiveReservationsWhenExpiresAtIsBeforeNow() {
-		Reservation expiredReservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
+		Reservation expiredReservation = new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10)));
 
 		when(reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100))
 				.thenReturn(List.of(expiredReservation));
@@ -168,8 +167,8 @@ public class ReservationServiceTest {
 
 	@Test
 	void shouldKeepReservationActiveWhenExpiresAtIsAfterNow() {
-		Reservation first = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
-		Reservation second = new Reservation(client, secondSlot, now, now.plusMinutes(2));
+		Reservation first = new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10)));
+		Reservation second = new Reservation(client, secondSlot, now, now.plus(Duration.ofMinutes(2)));
 
 		when(reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100)).thenReturn(List.of(first));
 
@@ -229,7 +228,7 @@ public class ReservationServiceTest {
 
 	@Test
 	void shouldExpireSingleReservationSuccessfully() {
-		Reservation expiredReservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
+		Reservation expiredReservation = new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10)));
 		ReflectionTestUtils.setField(expiredReservation, "id", 60L);
 
 		when(reservationRepository.findForUpdateById(expiredReservation.getId()))
@@ -292,7 +291,7 @@ public class ReservationServiceTest {
 
 	@Test
 	public void shouldNotReleaseSlotWhenReservationExpirationFails() {
-		Reservation first = new Reservation(client, firstSlot, now, now.plusMinutes(2));
+		Reservation first = new Reservation(client, firstSlot, now, now.plus(Duration.ofMinutes(2)));
 		ReflectionTestUtils.setField(first, "id", 111L);
 
 		when(reservationRepository.findForUpdateById(first.getId())).thenReturn(Optional.of(first));
@@ -320,7 +319,7 @@ public class ReservationServiceTest {
 
 	@Test
 	void shouldNotProcessReservationAgainOnRepeatedExpirationRun() {
-		Reservation expiredReservation = new Reservation(client, slot, now.minusMinutes(20), now.minusMinutes(10));
+		Reservation expiredReservation = new Reservation(client, slot, now.minus(Duration.ofMinutes(20)), now.minus(Duration.ofMinutes(10)));
 
 		when(reservationRepository.findExpiredBatchForUpdateSkipLocked(now, 100))
 				.thenReturn(List.of(expiredReservation)).thenReturn(List.of());

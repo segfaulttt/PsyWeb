@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -116,7 +117,7 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 				UPDATE slots
 				SET cancelled_at = ?
 				WHERE id = ?
-				""", cancelledAt, slotId));
+				""", cancelledAt.atOffset(ZoneOffset.UTC), slotId));
 	}
 
 	@Test

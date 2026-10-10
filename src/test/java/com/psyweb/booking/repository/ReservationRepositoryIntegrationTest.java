@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -303,6 +304,6 @@ public class ReservationRepositoryIntegrationTest extends PostgreSQLIntegrationT
 				UPDATE reservations
 				SET cancelled_at = ?
 				WHERE id = ?
-				""", cancelledAt, reservationId));
+				""", cancelledAt.atOffset(ZoneOffset.UTC), reservationId));
 	}
 }

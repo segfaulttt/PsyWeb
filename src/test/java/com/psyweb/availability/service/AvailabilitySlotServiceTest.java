@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 
@@ -44,7 +43,7 @@ class AvailabilitySlotServiceTest {
 	private AvailabilitySlotService slotService;
 	private static final Long SLOT_ID = 1L;
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 
 	@Mock
 	private AvailabilitySlotRepository slotRepository;
@@ -60,8 +59,8 @@ class AvailabilitySlotServiceTest {
 
 		specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
 
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 		slot = new AvailabilitySlot(specialist, start, end);
 	}
 
@@ -71,8 +70,8 @@ class AvailabilitySlotServiceTest {
 
 		when(specialist.getId()).thenReturn(1L);
 		when(specialistService.getEligibleSpecialistForUpdate(specialist.getId())).thenReturn(specialist);
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
 		when(slotRepository.saveAndFlush(any(AvailabilitySlot.class)))
@@ -94,8 +93,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectInvalidTime() {
-		LocalDateTime start = now.plusMinutes(10);
-		LocalDateTime end = now.plusMinutes(5);
+		Instant start = now.plus(Duration.ofMinutes(10));
+		Instant end = now.plus(Duration.ofMinutes(5));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, start, end));
@@ -146,8 +145,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenOverlapExists() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(true);
@@ -163,8 +162,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenSpecialistIdIsNull() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(null, start, end));
@@ -179,7 +178,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenStartTimeIsNull() {
-		LocalDateTime end = now.plusHours(2);
+		Instant end = now.plus(Duration.ofHours(2));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, null, end));
@@ -194,7 +193,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenEndTimeIsNull() {
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, start, null));
@@ -209,8 +208,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenStartEqualsEnd() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, start, end));
@@ -225,8 +224,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenStartTimeIsInPast() {
-		LocalDateTime start = now.minusMinutes(5);
-		LocalDateTime end = now.plusHours(1);
+		Instant start = now.minus(Duration.ofMinutes(5));
+		Instant end = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, start, end));
@@ -241,7 +240,7 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRejectSlotCreationWhenStartTimeEqualsNow() {
-		LocalDateTime end = now.plusHours(1);
+		Instant end = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> slotService.createSlot(1L, now, end));
@@ -258,8 +257,8 @@ class AvailabilitySlotServiceTest {
 	public void shouldNotSaveSlotWhenSpecialistValidationFails() {
 		Specialist specialist = mock(Specialist.class);
 
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		when(specialist.getId()).thenReturn(1L);
 		when(specialistService.getEligibleSpecialistForUpdate(specialist.getId()))
@@ -553,8 +552,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldTranslateSlotOverlapConstraintViolation() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
@@ -580,8 +579,8 @@ class AvailabilitySlotServiceTest {
 
 	@Test
 	public void shouldRethrowUnrelatedDataIntegrityViolation() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 
 		when(specialistService.getEligibleSpecialistForUpdate(1L)).thenReturn(specialist);
 		when(slotRepository.existsOverlappingSlot(1L, start, end)).thenReturn(false);
@@ -606,7 +605,7 @@ class AvailabilitySlotServiceTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "Deadline", Duration.ofHours(1), Duration.ZERO);
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(1)), now.plus(Duration.ofHours(2)));
 
 		// start = now + 1h
 		// notice = 1h
@@ -631,7 +630,7 @@ class AvailabilitySlotServiceTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "AfterDeadline", Duration.ofHours(2), Duration.ZERO);
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(1)), now.plus(Duration.ofHours(2)));
 
 		// start = now + 1h
 		// notice = 2h
@@ -656,7 +655,7 @@ class AvailabilitySlotServiceTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "Override", Duration.ofHours(2), Duration.ZERO);
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusHours(1), now.plusHours(2),
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plus(Duration.ofHours(1)), now.plus(Duration.ofHours(2)),
 				Duration.ofMinutes(30));
 
 		// Specialist default:

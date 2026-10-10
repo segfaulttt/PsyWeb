@@ -1,7 +1,7 @@
 package com.psyweb.booking.service;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -52,7 +52,7 @@ public class SchedulingService {
 		if (!slot.getSpecialistId().equals(specialistId)) {
 			throw new InvalidAvailabilitySlotStateException("Slot does not belong to this specialist");
 		}
-		LocalDateTime now = LocalDateTime.now(clock);
+		Instant now = clock.instant();
 		switch (slot.getAvailabilityStatus()) {
 		case FREE:
 			break;
@@ -70,7 +70,7 @@ public class SchedulingService {
 	}
 
 	@Transactional
-	public void cancelFutureSlotsForSpecialistSuspension(Long specialistId, LocalDateTime suspendedAt) {
+	public void cancelFutureSlotsForSpecialistSuspension(Long specialistId, Instant suspendedAt) {
 		validateSpecialistId(specialistId);
 		if (suspendedAt == null) {
 			throw new InvalidAvailabilitySlotDataException("Suspension time cannot be null");

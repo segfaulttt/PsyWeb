@@ -1,6 +1,6 @@
 package com.psyweb.booking.domain;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import com.psyweb.availability.domain.AvailabilitySlot;
 import com.psyweb.booking.exception.InvalidReservationDataException;
@@ -41,13 +41,13 @@ public class Reservation {
 	private ReservationStatus status;
 
 	@Column(name = "created_at", nullable = false)
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 
 	@Column(name = "expires_at", nullable = false)
-	private LocalDateTime expiresAt;
+	private Instant expiresAt;
 
 	@Column(name = "cancelled_at")
-	private LocalDateTime cancelledAt;
+	private Instant cancelledAt;
 
 	@Column(name = "cancellation_initiator")
 	@Enumerated(EnumType.STRING)
@@ -60,7 +60,7 @@ public class Reservation {
 	protected Reservation() {
 	}
 
-	public Reservation(User client, AvailabilitySlot slot, LocalDateTime createdAt, LocalDateTime expiresAt) {
+	public Reservation(User client, AvailabilitySlot slot, Instant createdAt, Instant expiresAt) {
 		if (client == null) {
 			throw new InvalidReservationDataException("Client cannot be null");
 		}
@@ -80,7 +80,7 @@ public class Reservation {
 		this.expiresAt = expiresAt;
 	}
 
-	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
+	private void validateCancellation(Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidReservationDataException("Cancellation metadata cannot be null");
@@ -103,15 +103,15 @@ public class Reservation {
 		return this.status;
 	}
 
-	public LocalDateTime getCreatedAt() {
+	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
 
-	public LocalDateTime getExpiresAt() {
+	public Instant getExpiresAt() {
 		return this.expiresAt;
 	}
 
-	public LocalDateTime getCancelledAt() {
+	public Instant getCancelledAt() {
 		return this.cancelledAt;
 	}
 
@@ -123,7 +123,7 @@ public class Reservation {
 		return this.reason;
 	}
 
-	public void expire(LocalDateTime now) {
+	public void expire(Instant now) {
 		if (!isExpired(now)) {
 			throw new InvalidReservationStateException("Cannot mark expired");
 		}
@@ -131,11 +131,11 @@ public class Reservation {
 		status = ReservationStatus.EXPIRED;
 	}
 
-	public boolean isExpired(LocalDateTime now) {
+	public boolean isExpired(Instant now) {
 		return status == ReservationStatus.ACTIVE && !expiresAt.isAfter(now);
 	}
 
-	public void cancel(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+	public void cancel(Instant cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		validateCancellation(cancelledAt, initiator, reason);
 		if (this.status != ReservationStatus.ACTIVE) {
 			throw new InvalidReservationStateException("Cannot mark cancelled");
@@ -146,7 +146,7 @@ public class Reservation {
 		this.reason = reason;
 	}
 
-	public void confirm(LocalDateTime now) {
+	public void confirm(Instant now) {
 		if (status != ReservationStatus.ACTIVE || !expiresAt.isAfter(now)) {
 			throw new InvalidReservationStateException("Cannot mark confirm");
 		}

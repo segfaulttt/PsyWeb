@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +40,7 @@ class SpecialistModerationServiceTest {
 
 	@Test
 	void shouldSuspendSpecialistAndCancelFutureSlots() {
-		LocalDateTime suspendedAt = LocalDateTime.now(clock);
+		Instant suspendedAt = clock.instant();
 
 		moderationService.suspendSpecialist(SPECIALIST_ID);
 

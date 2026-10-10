@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -37,7 +36,7 @@ public class SchedulingServiceTest {
 
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
 
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 
 	@Mock
 	private AvailabilitySlotService slotService;
@@ -162,7 +161,7 @@ public class SchedulingServiceTest {
 
 		ReflectionTestUtils.setField(specialist, "id", SPECIALIST_ID);
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plusDays(1), now.plusDays(1).plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, now.plus(Duration.ofDays(1)), now.plus(Duration.ofDays(1)).plus(Duration.ofHours(1)));
 
 		ReflectionTestUtils.setField(slot, "id", SLOT_ID);
 

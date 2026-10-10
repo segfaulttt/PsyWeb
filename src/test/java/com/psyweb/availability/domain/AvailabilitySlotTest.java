@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +29,7 @@ public class AvailabilitySlotTest {
 	private AvailabilitySlot slot;
 
 	private final Clock clock = Clock.fixed(Instant.parse("2099-01-01T10:00:00Z"), ZoneId.of("UTC"));
-	private final LocalDateTime now = LocalDateTime.now(clock);
+	private final Instant now = clock.instant();
 
 	@BeforeEach
 	void setUp() {
@@ -38,15 +37,15 @@ public class AvailabilitySlotTest {
 
 		Specialist specialist = new Specialist(user, "firstName", "lastName", Duration.ZERO, Duration.ZERO);
 
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 		slot = new AvailabilitySlot(specialist, start, end);
 	}
 
 	@Test
 	public void shouldRejectCreationWithoutSpecialist() {
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(2);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(2));
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> new AvailabilitySlot(null, start, end));
 		assertEquals("AVAILABILITY_SLOT_INVALID_DATA", exception.code());
@@ -56,7 +55,7 @@ public class AvailabilitySlotTest {
 	@Test
 	public void shouldRejectCreationWhenStartTimeIsNull() {
 		Specialist specialist = mock(Specialist.class);
-		LocalDateTime end = now.plusHours(2);
+		Instant end = now.plus(Duration.ofHours(2));
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> new AvailabilitySlot(specialist, null, end));
 
@@ -67,7 +66,7 @@ public class AvailabilitySlotTest {
 	@Test
 	public void shouldRejectCreationWhenEndTimeIsNull() {
 		Specialist specialist = mock(Specialist.class);
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> new AvailabilitySlot(specialist, start, null));
 
@@ -78,8 +77,8 @@ public class AvailabilitySlotTest {
 	@Test
 	public void shouldRejectCreationWhenStartEqualsEnd() {
 		Specialist specialist = mock(Specialist.class);
-		LocalDateTime start = now.plusHours(1);
-		LocalDateTime end = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
+		Instant end = now.plus(Duration.ofHours(1));
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> new AvailabilitySlot(specialist, start, end));
 
@@ -90,8 +89,8 @@ public class AvailabilitySlotTest {
 	@Test
 	public void shouldRejectCreationWhenStartIsAfterEnd() {
 		Specialist specialist = mock(Specialist.class);
-		LocalDateTime start = now.plusHours(2);
-		LocalDateTime end = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(2));
+		Instant end = now.plus(Duration.ofHours(1));
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
 				() -> new AvailabilitySlot(specialist, start, end));
 
@@ -366,13 +365,13 @@ public class AvailabilitySlotTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "Default", Duration.ofHours(2), Duration.ZERO);
 
-		LocalDateTime start = now.plusHours(3);
+		Instant start = now.plus(Duration.ofHours(3));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)));
 
 		assertEquals(Duration.ofHours(2), slot.getEffectiveMinimumBookingNotice());
 
-		assertEquals(start.minusHours(2), slot.getBookingDeadline());
+		assertEquals(start.minus(Duration.ofHours(2)), slot.getBookingDeadline());
 	}
 
 	@Test
@@ -381,13 +380,13 @@ public class AvailabilitySlotTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "Override", Duration.ofHours(2), Duration.ZERO);
 
-		LocalDateTime start = now.plusHours(3);
+		Instant start = now.plus(Duration.ofHours(1));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(30));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), Duration.ofMinutes(30));
 
 		assertEquals(Duration.ofMinutes(30), slot.getEffectiveMinimumBookingNotice());
 
-		assertEquals(start.minusMinutes(30), slot.getBookingDeadline());
+		assertEquals(start.minus(Duration.ofMinutes(30)), slot.getBookingDeadline());
 	}
 
 	@Test
@@ -396,9 +395,9 @@ public class AvailabilitySlotTest {
 
 		Specialist specialist = new Specialist(user, "Anna", "Zero", Duration.ofHours(2), Duration.ZERO);
 
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ZERO);
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), Duration.ZERO);
 
 		assertEquals(Duration.ZERO, slot.getEffectiveMinimumBookingNotice());
 
@@ -409,10 +408,10 @@ public class AvailabilitySlotTest {
 	void shouldRejectNegativeMinimumBookingNoticeOverride() {
 		Specialist specialist = mock(Specialist.class);
 
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
-				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(-1)));
+				() -> new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), Duration.ofMinutes(-1)));
 
 		assertEquals("Minimum booking notice override cannot be negative", exception.getMessage());
 	}
@@ -421,10 +420,10 @@ public class AvailabilitySlotTest {
 	void shouldRejectMinimumBookingNoticeOverrideWithPartialMinute() {
 		Specialist specialist = mock(Specialist.class);
 
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
-				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofSeconds(30)));
+				() -> new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), Duration.ofSeconds(30)));
 
 		assertEquals("Minimum booking notice override must contain whole minutes", exception.getMessage());
 	}
@@ -433,12 +432,12 @@ public class AvailabilitySlotTest {
 	void shouldRejectMinimumBookingNoticeOverrideOutsideIntegerRange() {
 		Specialist specialist = mock(Specialist.class);
 
-		LocalDateTime start = now.plusHours(1);
+		Instant start = now.plus(Duration.ofHours(1));
 
 		Duration tooLarge = Duration.ofMinutes((long) Integer.MAX_VALUE + 1);
 
 		InvalidAvailabilitySlotDataException exception = assertThrows(InvalidAvailabilitySlotDataException.class,
-				() -> new AvailabilitySlot(specialist, start, start.plusHours(1), tooLarge));
+				() -> new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), tooLarge));
 
 		assertEquals("Minimum booking notice override exceeds supported range", exception.getMessage());
 	}

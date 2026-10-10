@@ -1,7 +1,7 @@
 package com.psyweb.admin.service;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import org.springframework.stereotype.Service;
 
@@ -44,7 +44,7 @@ public class SpecialistModerationService {
 	@Transactional
 	public void suspendSpecialist(Long specialistId) {
 		validateSpecialistId(specialistId);
-		LocalDateTime suspendedAt = LocalDateTime.now(clock);
+		Instant suspendedAt = clock.instant();
 		specialistService.suspendSpecialist(specialistId);
 		schedulingService.cancelFutureSlotsForSpecialistSuspension(specialistId, suspendedAt);
 	}

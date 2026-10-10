@@ -1,6 +1,6 @@
 package com.psyweb.user.domain;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Locale;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,7 +39,7 @@ public class User {
 	
 	@Column(name = "created_at", nullable = false, updatable = false)
 	@CreationTimestamp
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 	
 	protected User() {}
 	
@@ -125,7 +125,7 @@ public class User {
 		this.status = UserStatus.ACTIVE;
 	}
 	
-	public LocalDateTime getCreatedAt() {
+	public Instant getCreatedAt() {
 		return this.createdAt;
 	}
 }

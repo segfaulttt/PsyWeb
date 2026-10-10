@@ -1,7 +1,7 @@
 package com.psyweb.availability.domain;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import com.psyweb.availability.exception.InvalidAvailabilitySlotDataException;
 import com.psyweb.availability.exception.InvalidAvailabilitySlotStateException;
@@ -35,17 +35,17 @@ public class AvailabilitySlot {
 	private Specialist specialist;
 
 	@Column(name = "start_time", nullable = false)
-	private LocalDateTime startTime;
+	private Instant startTime;
 
 	@Column(name = "end_time", nullable = false)
-	private LocalDateTime endTime;
+	private Instant endTime;
 
 	@Column(name = "availability_status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private AvailabilityStatus availabilityStatus;
 
 	@Column(name = "cancelled_at")
-	private LocalDateTime cancelledAt;
+	private Instant cancelledAt;
 
 	@Column(name = "cancellation_initiator")
 	@Enumerated(EnumType.STRING)
@@ -62,11 +62,11 @@ public class AvailabilitySlot {
 	protected AvailabilitySlot() {
 	}
 	
-	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime) {
+	public AvailabilitySlot(Specialist specialist, Instant startTime, Instant endTime) {
 		this(specialist, startTime, endTime, null);
 	}
 
-	public AvailabilitySlot(Specialist specialist, LocalDateTime startTime, LocalDateTime endTime,
+	public AvailabilitySlot(Specialist specialist, Instant startTime, Instant endTime,
 			Duration minimumBookingNoticeOverride) {
 		if (startTime == null || endTime == null) {
 			throw new InvalidAvailabilitySlotDataException("Time cannot be null");
@@ -86,7 +86,7 @@ public class AvailabilitySlot {
 		this.minimumBookingNoticeOverride = minimumBookingNoticeOverride;
 	}
 
-	private void validateCancellation(LocalDateTime cancelledAt, CancellationInitiator initiator,
+	private void validateCancellation(Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		if (cancelledAt == null || initiator == null || reason == null) {
 			throw new InvalidAvailabilitySlotDataException("Cancellation metadata cannot be null");
@@ -116,11 +116,11 @@ public class AvailabilitySlot {
 		return specialist.getId();
 	}
 
-	public LocalDateTime getStartTime() {
+	public Instant getStartTime() {
 		return this.startTime;
 	}
 
-	public LocalDateTime getEndTime() {
+	public Instant getEndTime() {
 		return this.endTime;
 	}
 
@@ -128,7 +128,7 @@ public class AvailabilitySlot {
 		return this.availabilityStatus;
 	}
 
-	public LocalDateTime getCancelledAt() {
+	public Instant getCancelledAt() {
 		return this.cancelledAt;
 	}
 
@@ -145,7 +145,7 @@ public class AvailabilitySlot {
 				: specialist.getMinimumBookingNotice();
 	}
 
-	public LocalDateTime getBookingDeadline() {
+	public Instant getBookingDeadline() {
 		return startTime.minus(getEffectiveMinimumBookingNotice());
 	}
 
@@ -180,7 +180,7 @@ public class AvailabilitySlot {
 		this.availabilityStatus = AvailabilityStatus.FREE;
 	}
 
-	public void cancel(LocalDateTime cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
+	public void cancel(Instant cancelledAt, CancellationInitiator initiator, CancellationReason reason) {
 		if (availabilityStatus == AvailabilityStatus.CANCELLED) {
 			throw new InvalidAvailabilitySlotStateException("Cannot cancel slot with status " + availabilityStatus);
 		}

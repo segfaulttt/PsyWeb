@@ -2,7 +2,7 @@ package com.psyweb.availability.service;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -47,7 +47,7 @@ public class AvailabilitySlotService {
 	}
 
 	@Transactional
-	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime,
+	public AvailabilitySlot createSlot(Long specialistId, Instant startTime, Instant endTime,
 			Duration minimumBookingNoticeOverride) {
 		if (specialistId == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist id cannot be null");
@@ -56,7 +56,7 @@ public class AvailabilitySlotService {
 		if (startTime == null || endTime == null) {
 			throw new InvalidAvailabilitySlotDataException("Time cannot be null");
 		}
-		if (!startTime.isAfter(LocalDateTime.now(clock))) {
+		if (!startTime.isAfter(clock.instant())) {
 			throw new InvalidAvailabilitySlotDataException("Start time must be after now");
 		}
 		if (!startTime.isBefore(endTime)) {
@@ -81,7 +81,7 @@ public class AvailabilitySlotService {
 	}
 	
 	@Transactional
-	public AvailabilitySlot createSlot(Long specialistId, LocalDateTime startTime, LocalDateTime endTime) {
+	public AvailabilitySlot createSlot(Long specialistId, Instant startTime, Instant endTime) {
 		return createSlot(specialistId, startTime, endTime, null);
 	}
 
@@ -135,7 +135,7 @@ public class AvailabilitySlotService {
 	}
 
 	@Transactional
-	public List<AvailabilitySlot> findFutureSlotsForUpdate(Long specialistId, LocalDateTime suspendedAt) {
+	public List<AvailabilitySlot> findFutureSlotsForUpdate(Long specialistId, Instant suspendedAt) {
 		if (specialistId == null) {
 			throw new InvalidAvailabilitySlotDataException("Specialist id cannot be null");
 		}
@@ -180,7 +180,7 @@ public class AvailabilitySlotService {
 	}
 
 	@Transactional
-	public AvailabilitySlot cancelSlot(Long slotId, LocalDateTime cancelledAt, CancellationInitiator initiator,
+	public AvailabilitySlot cancelSlot(Long slotId, Instant cancelledAt, CancellationInitiator initiator,
 			CancellationReason reason) {
 		validateSlotId(slotId);
 		AvailabilitySlot slot = slotRepository.findForUpdateById(slotId)
@@ -196,8 +196,8 @@ public class AvailabilitySlotService {
 		AvailabilitySlot slot = slotRepository.findForUpdateById(slotId)
 				.orElseThrow(() -> new AvailabilitySlotNotFoundException("Slot not found"));
 
-		LocalDateTime now = LocalDateTime.now(clock);
-		LocalDateTime bookingDeadline = slot.getBookingDeadline();
+		Instant now = clock.instant();
+		Instant bookingDeadline = slot.getBookingDeadline();
 
 		if (!now.isBefore(bookingDeadline)) {
 			throw new InvalidAvailabilitySlotStateException("Slot is no longer bookable");

@@ -7,7 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,9 +66,9 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Test
 	public void shouldPersistAvailabilitySlotCancellationMetadata() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime startTime = now.plusDays(1);
-		LocalDateTime cancelledAt = now.plusMinutes(5);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant startTime = now.plus(Duration.ofDays(1));
+		Instant cancelledAt = now.plus(Duration.ofMinutes(5));
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-slot-metadata@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -75,7 +76,7 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		Specialist specialist = specialistRepository
 				.saveAndFlush(new Specialist(specialistUser, "Anna", "SlotMetadata", Duration.ZERO, Duration.ZERO));
 
-		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plusHours(1));
+		AvailabilitySlot slot = new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1)));
 
 		slot.cancel(cancelledAt, CancellationInitiator.SPECIALIST, CancellationReason.SPECIALIST_REMOVED_AVAILABILITY);
 
@@ -96,9 +97,9 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Test
 	public void shouldRejectPartialAvailabilitySlotCancellationMetadata() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime startTime = now.plusDays(1);
-		LocalDateTime cancelledAt = now.plusMinutes(5);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant startTime = now.plus(Duration.ofDays(1));
+		Instant cancelledAt = now.plus(Duration.ofMinutes(5));
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-slot-partial@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -107,7 +108,7 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 				.saveAndFlush(new Specialist(specialistUser, "Anna", "SlotPartial", Duration.ZERO, Duration.ZERO));
 
 		AvailabilitySlot slot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plusHours(1)));
+				.saveAndFlush(new AvailabilitySlot(specialist, startTime, startTime.plus(Duration.ofHours(1))));
 
 		Long slotId = slot.getId();
 
@@ -120,9 +121,9 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Test
 	void shouldAllowCreatingNewSlotForCancelledTime() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime startTime = now.plusDays(1);
-		LocalDateTime endTime = startTime.plusHours(1);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant startTime = now.plus(Duration.ofDays(1));
+		Instant endTime = startTime.plus(Duration.ofHours(1));
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-reopen-slot@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -150,8 +151,8 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Test
 	void shouldFindOnlySlotsStartingAfterSuspensionTime() {
-		LocalDateTime now = LocalDateTime.now(clock).withNano(0);
-		LocalDateTime suspendedAt = now.plusDays(2);
+		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+		Instant suspendedAt = now.plus(Duration.ofDays(2));
 
 		User specialistUser = userRepository.saveAndFlush(new User("specialist-suspension-boundary@example.com",
 				"password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
@@ -161,12 +162,12 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		specialist.approve();
 		specialist = specialistRepository.saveAndFlush(specialist);
 
-		AvailabilitySlot beforeBoundary = new AvailabilitySlot(specialist, suspendedAt.minusHours(1), suspendedAt);
+		AvailabilitySlot beforeBoundary = new AvailabilitySlot(specialist, suspendedAt.minus(Duration.ofHours(1)), suspendedAt);
 
-		AvailabilitySlot atBoundary = new AvailabilitySlot(specialist, suspendedAt, suspendedAt.plusHours(1));
+		AvailabilitySlot atBoundary = new AvailabilitySlot(specialist, suspendedAt, suspendedAt.plus(Duration.ofHours(1)));
 
-		AvailabilitySlot afterBoundary = new AvailabilitySlot(specialist, suspendedAt.plusHours(1),
-				suspendedAt.plusHours(2));
+		AvailabilitySlot afterBoundary = new AvailabilitySlot(specialist, suspendedAt.plus(Duration.ofHours(1)),
+				suspendedAt.plus(Duration.ofHours(2)));
 
 		slotRepository.saveAllAndFlush(List.of(beforeBoundary, atBoundary, afterBoundary));
 
@@ -185,14 +186,14 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 		Specialist specialist = persistSpecialist("active-" + existingStatus.name().toLowerCase());
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(10);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(10));
 
-		AvailabilitySlot existingSlot = createSlotWithStatus(specialist, start, start.plusHours(1), existingStatus);
+		AvailabilitySlot existingSlot = createSlotWithStatus(specialist, start, start.plus(Duration.ofHours(1)), existingStatus);
 
 		slotRepository.saveAndFlush(existingSlot);
 
-		AvailabilitySlot overlappingSlot = new AvailabilitySlot(specialist, start.plusMinutes(30),
-				start.plusHours(1).plusMinutes(30));
+		AvailabilitySlot overlappingSlot = new AvailabilitySlot(specialist, start.plus(Duration.ofMinutes(30)),
+				start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30)));
 
 		DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
 				() -> slotRepository.saveAndFlush(overlappingSlot));
@@ -202,13 +203,13 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 
 	@Test
 	void shouldAllowAdjacentActiveSlotsForSameSpecialist() {
-		Specialist specialist = persistSpecialist("adjacent");
+		Specialist specialist = persistSpecialist("adjacent"); 
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(11);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(11));
 
-		AvailabilitySlot firstSlot = new AvailabilitySlot(specialist, start, start.plusHours(1));
+		AvailabilitySlot firstSlot = new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)));
 
-		AvailabilitySlot secondSlot = new AvailabilitySlot(specialist, start.plusHours(1), start.plusHours(2));
+		AvailabilitySlot secondSlot = new AvailabilitySlot(specialist, start.plus(Duration.ofHours(1)), start.plus(Duration.ofHours(2)));
 
 		firstSlot = slotRepository.saveAndFlush(firstSlot);
 		secondSlot = slotRepository.saveAndFlush(secondSlot);
@@ -222,11 +223,11 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		Specialist firstSpecialist = persistSpecialist("different-first");
 		Specialist secondSpecialist = persistSpecialist("different-second");
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(12);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(12));
 
-		AvailabilitySlot firstSlot = new AvailabilitySlot(firstSpecialist, start, start.plusHours(1));
+		AvailabilitySlot firstSlot = new AvailabilitySlot(firstSpecialist, start, start.plus(Duration.ofHours(1)));
 
-		AvailabilitySlot secondSlot = new AvailabilitySlot(secondSpecialist, start, start.plusHours(1));
+		AvailabilitySlot secondSlot = new AvailabilitySlot(secondSpecialist, start, start.plus(Duration.ofHours(1)));
 
 		firstSlot = slotRepository.saveAndFlush(firstSlot);
 		secondSlot = slotRepository.saveAndFlush(secondSlot);
@@ -243,7 +244,7 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 				.saveAndFlush(new Specialist(specialistUser, "Anna", "Overlap", Duration.ZERO, Duration.ZERO));
 	}
 
-	private AvailabilitySlot createSlotWithStatus(Specialist specialist, LocalDateTime start, LocalDateTime end,
+	private AvailabilitySlot createSlotWithStatus(Specialist specialist, Instant start, Instant end,
 			AvailabilityStatus status) {
 
 		AvailabilitySlot slot = new AvailabilitySlot(specialist, start, end);
@@ -285,10 +286,10 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		Specialist specialist = specialistRepository.saveAndFlush(
 				new Specialist(specialistUser, "Anna", "NoticePersistence", Duration.ofHours(2), Duration.ZERO));
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(20);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(20));
 
 		AvailabilitySlot slot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plusHours(1), Duration.ofMinutes(30)));
+				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1)), Duration.ofMinutes(30)));
 
 		Integer persistedMinutes = jdbcTemplate.queryForObject("""
 				SELECT minimum_booking_notice_minutes
@@ -315,10 +316,10 @@ public class AvailabilitySlotRepositoryIntegrationTest extends PostgreSQLIntegra
 		Specialist specialist = specialistRepository
 				.saveAndFlush(new Specialist(specialistUser, "Anna", "NullNotice", Duration.ofHours(2), Duration.ZERO));
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(21);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(21));
 
 		AvailabilitySlot slot = slotRepository
-				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plusHours(1)));
+				.saveAndFlush(new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1))));
 
 		Integer persistedMinutes = jdbcTemplate.queryForObject("""
 				SELECT minimum_booking_notice_minutes

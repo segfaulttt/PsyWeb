@@ -7,7 +7,8 @@ import static org.mockito.Mockito.doReturn;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,15 +53,15 @@ public class AvailabilitySlotServiceIntegrationTest extends PostgreSQLIntegratio
 		specialist.approve();
 		specialistRepository.saveAndFlush(specialist);
 
-		LocalDateTime start = LocalDateTime.now(clock).withNano(0).plusDays(20);
+		Instant start = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(Duration.ofDays(20));
 
-		slotRepository.saveAndFlush(new AvailabilitySlot(specialist, start, start.plusHours(1)));
+		slotRepository.saveAndFlush(new AvailabilitySlot(specialist, start, start.plus(Duration.ofHours(1))));
 
-		doReturn(false).when(slotRepository).existsOverlappingSlot(specialist.getId(), start.plusMinutes(30),
-				start.plusHours(1).plusMinutes(30));
+		doReturn(false).when(slotRepository).existsOverlappingSlot(specialist.getId(), start.plus(Duration.ofMinutes(30)),
+				start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30)));
 
 		SlotOverlapException exception = assertThrows(SlotOverlapException.class, () -> slotService
-				.createSlot(specialist.getId(), start.plusMinutes(30), start.plusHours(1).plusMinutes(30)));
+				.createSlot(specialist.getId(), start.plus(Duration.ofMinutes(30)), start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30))));
 
 		assertEquals("SLOT_OVERLAP", exception.code());
 		assertEquals("Slot overlap", exception.getMessage());

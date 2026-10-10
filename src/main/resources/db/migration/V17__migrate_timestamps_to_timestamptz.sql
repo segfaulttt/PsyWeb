@@ -1,0 +1,58 @@
+ALTER TABLE slots
+DROP CONSTRAINT no_overlapping_active_slots;
+
+ALTER TABLE users
+ALTER COLUMN created_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE slots
+ALTER COLUMN start_time
+TYPE TIMESTAMP WITH TIME ZONE
+USING start_time AT TIME ZONE 'UTC';
+
+ALTER TABLE slots
+ALTER COLUMN end_time
+TYPE TIMESTAMP WITH TIME ZONE
+USING end_time AT TIME ZONE 'UTC';
+
+ALTER TABLE slots
+ALTER COLUMN cancelled_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING cancelled_at AT TIME ZONE 'UTC';
+
+
+ALTER TABLE bookings
+ALTER COLUMN created_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE bookings
+ALTER COLUMN cancelled_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING cancelled_at AT TIME ZONE 'UTC';
+
+
+ALTER TABLE reservations
+ALTER COLUMN created_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE reservations
+ALTER COLUMN expires_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING expires_at AT TIME ZONE 'UTC';
+
+ALTER TABLE reservations
+ALTER COLUMN cancelled_at
+TYPE TIMESTAMP WITH TIME ZONE
+USING cancelled_at AT TIME ZONE 'UTC';
+
+
+ALTER TABLE slots
+ADD CONSTRAINT no_overlapping_active_slots
+EXCLUDE USING gist (
+    specialist_id WITH =,
+    tstzrange(start_time, end_time, '[)') WITH &&
+)
+WHERE (availability_status IN ('FREE', 'RESERVED', 'BOOKED'));

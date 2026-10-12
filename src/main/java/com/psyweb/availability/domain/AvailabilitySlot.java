@@ -139,6 +139,10 @@ public class AvailabilitySlot {
 	public CancellationReason getCancellationReason() {
 		return this.reason;
 	}
+	
+	public Duration getMinimumBookingNoticeOverride() {
+		return this.minimumBookingNoticeOverride;
+	}
 
 	public Duration getEffectiveMinimumBookingNotice() {
 		return minimumBookingNoticeOverride != null ? minimumBookingNoticeOverride

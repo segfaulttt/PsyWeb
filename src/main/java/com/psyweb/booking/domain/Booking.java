@@ -147,6 +147,14 @@ public class Booking {
 	public CancellationReason getCancellationReason() {
 		return this.reason;
 	}
+	
+	public Instant getStartTime() {
+		return slot.getStartTime();
+	}
+	
+	public Instant getEndTime() {
+		return slot.getEndTime();
+	}
 
 	public void cancel(Instant time, CancellationInitiator initiator, CancellationReason reason) {
 		if (this.status != BookingStatus.CONFIRMED) {

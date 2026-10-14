@@ -9,4 +9,5 @@ import com.psyweb.user.domain.User;
 public interface UserRepository extends JpaRepository<User, Long>{
 	Optional<User> findByEmail(String email);
 	boolean existsByEmailAndIdNot(String email, Long id);
+	boolean existsByEmail(String email);
 }

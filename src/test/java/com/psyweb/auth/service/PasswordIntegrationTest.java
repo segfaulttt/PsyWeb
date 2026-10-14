@@ -4,6 +4,11 @@ package com.psyweb.auth.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,5 +101,74 @@ class PasswordIntegrationTest extends PostgreSQLIntegrationTest {
 		assertEquals(updatedHash, persisted.getPasswordHash());
 
 		assertTrue(passwordEncoder.matches(NEW_PASSWORD, persisted.getPasswordHash()));
+	}
+
+	@Test
+	void shouldPreventConcurrentPasswordChanges() throws Exception {
+		User registered = registrationService.register(uniqueEmail(), CURRENT_PASSWORD, UserRole.CLIENT);
+
+		Long userId = registered.getId();
+		String oldHash = registered.getPasswordHash();
+
+		String firstNewHash = passwordEncoder.encode("FirstNewPassword123!");
+
+		String secondNewHash = passwordEncoder.encode("SecondNewPassword123!");
+
+		CountDownLatch startLatch = new CountDownLatch(1);
+
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+
+			Future<Object> first = executor.submit(() -> {
+				startLatch.await();
+
+				try {
+					return userService.changePassword(userId, oldHash, firstNewHash);
+				} catch (ConcurrentPasswordChangeException e) {
+					return e;
+				}
+			});
+
+			Future<Object> second = executor.submit(() -> {
+				startLatch.await();
+
+				try {
+					return userService.changePassword(userId, oldHash, secondNewHash);
+				} catch (ConcurrentPasswordChangeException e) {
+					return e;
+				}
+			});
+
+			startLatch.countDown();
+
+			Object firstResult = first.get(30, TimeUnit.SECONDS);
+			Object secondResult = second.get(30, TimeUnit.SECONDS);
+
+			int successfulChanges = 0;
+			int conflicts = 0;
+
+			for (Object result : new Object[] { firstResult, secondResult }) {
+				if (result instanceof User) {
+					successfulChanges++;
+				} else if (result instanceof ConcurrentPasswordChangeException) {
+					conflicts++;
+				} else {
+					fail("Unexpected result: " + result);
+				}
+			}
+
+			assertEquals(1, successfulChanges);
+			assertEquals(1, conflicts);
+
+			User persisted = userRepository.findById(userId).orElseThrow();
+
+			boolean firstPasswordMatches = passwordEncoder.matches("FirstNewPassword123!", persisted.getPasswordHash());
+
+			boolean secondPasswordMatches = passwordEncoder.matches("SecondNewPassword123!",
+					persisted.getPasswordHash());
+
+			assertTrue(firstPasswordMatches ^ secondPasswordMatches);
+
+			assertFalse(passwordEncoder.matches(CURRENT_PASSWORD, persisted.getPasswordHash()));
+		}
 	}
 }

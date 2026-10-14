@@ -22,31 +22,35 @@ public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	
+
 	@Column(name = "email", nullable = false, unique = true)
 	private String email;
-	
+
 	@Column(name = "password_hash", nullable = false)
 	private String passwordHash;
-	
+
 	@Column(name = "role", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private UserRole role;
-	
+
 	@Column(name = "status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private UserStatus status;
-	
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	@CreationTimestamp
 	private Instant createdAt;
-	
-	protected User() {}
-	
+
+	@Column(name = "email_verified_at")
+	private Instant emailVerifiedAt;
+
+	protected User() {
+	}
+
 	public User(String email, String passwordHash, UserRole role, UserStatus status) {
 		email = normalizeEmail(email);
 		validatePasswordHash(passwordHash);
-		
+
 		if (role == null) {
 			throw new InvalidUserDataException("User role cannot be null");
 		}
@@ -57,74 +61,90 @@ public class User {
 		this.passwordHash = passwordHash;
 		this.role = role;
 		this.status = status;
+		this.emailVerifiedAt = null;
 	}
-	
+
 	private static void validatePasswordHash(String passwordHash) {
 		if (passwordHash == null || passwordHash.isBlank()) {
 			throw new InvalidUserDataException("Password hash cannot be blank");
 		}
 	}
-	
+
 	private static void validateEmail(String email) {
 		if (email == null || email.isBlank()) {
 			throw new InvalidUserDataException("Email cannot be blank");
 		}
 		int idxF = email.indexOf('@');
 		int idxL = email.lastIndexOf('@');
-		
+
 		if (idxF == -1 || idxF != idxL || idxF == 0 || idxF == email.length() - 1) {
 			throw new InvalidUserDataException("Invalid email format");
 		}
 	}
-	
+
 	public static String normalizeEmail(String email) {
 		if (email == null) {
 			throw new InvalidUserDataException("Email cannot be blank");
 		}
 		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 		validateEmail(normalizedEmail);
-		
+
 		return normalizedEmail;
 	}
-	
+
 	public Long getId() {
 		return this.id;
 	}
-	
+
 	public String getEmail() {
 		return this.email;
 	}
-	
+
 	public void changeEmail(String newEmail) {
 		newEmail = normalizeEmail(newEmail);
 		this.email = newEmail;
+		this.emailVerifiedAt = null;
 	}
-	
+
+	public Instant getEmailVerifiedAt() {
+		return this.emailVerifiedAt;
+	}
+
+	public void verifyEmail(Instant verifiedAt) {
+		if (verifiedAt == null) {
+			throw new InvalidUserDataException("Verification timestamp cannot be null");
+		}
+		if (this.emailVerifiedAt != null) {
+			return;
+		}
+		this.emailVerifiedAt = verifiedAt;
+	}
+
 	public String getPasswordHash() {
 		return this.passwordHash;
 	}
-	
+
 	public void changePasswordHash(String newPasswordHash) {
 		validatePasswordHash(newPasswordHash);
 		this.passwordHash = newPasswordHash;
 	}
-	
+
 	public UserRole getRole() {
 		return this.role;
 	}
-	
+
 	public UserStatus getStatus() {
 		return this.status;
 	}
-	
+
 	public void block() {
 		this.status = UserStatus.BLOCKED;
 	}
-	
+
 	public void activate() {
 		this.status = UserStatus.ACTIVE;
 	}
-	
+
 	public Instant getCreatedAt() {
 		return this.createdAt;
 	}

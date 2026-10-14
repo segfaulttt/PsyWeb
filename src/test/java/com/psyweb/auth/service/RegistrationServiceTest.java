@@ -4,11 +4,15 @@ package com.psyweb.auth.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.sql.SQLException;
+
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.psyweb.auth.exception.InvalidPasswordException;
@@ -114,4 +118,67 @@ class RegistrationServiceTest {
 		verify(passwordEncoder).encode(PASSWORD);
 		verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
 	}
+
+	@Test
+	void shouldTranslateEmailUniqueConstraintViolation() {
+		SQLException sqlException = new SQLException("Unique constraint violated", "23505");
+
+		ConstraintViolationException constraintException = new ConstraintViolationException("Duplicate email",
+				sqlException, "users_email_key");
+
+		DataIntegrityViolationException exception = new DataIntegrityViolationException("Database constraint violation",
+				constraintException);
+
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
+
+		UserEmailAlreadyExistsException result = assertThrows(UserEmailAlreadyExistsException.class,
+				() -> registrationService.register(EMAIL, PASSWORD, UserRole.CLIENT));
+
+		assertSame(exception, result.getCause());
+
+		verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
+	}
+
+	@Test
+	void shouldPropagateUnrelatedDataIntegrityViolation() {
+		SQLException sqlException = new SQLException("Not null constraint violated", "23502");
+
+		ConstraintViolationException constraintException = new ConstraintViolationException("Null value", sqlException,
+				"users_password_hash_not_null");
+
+		DataIntegrityViolationException exception = new DataIntegrityViolationException("Database constraint violation",
+				constraintException);
+
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
+
+		DataIntegrityViolationException result = assertThrows(DataIntegrityViolationException.class,
+				() -> registrationService.register(EMAIL, PASSWORD, UserRole.CLIENT));
+
+		assertSame(exception, result);
+	}
+
+	@Test
+	void shouldNotTranslateWrongSqlStateForEmailConstraint() {
+		SQLException sqlException = new SQLException("Check constraint violated", "23514");
+
+		ConstraintViolationException constraintException = new ConstraintViolationException("Constraint violation",
+				sqlException, "users_email_key");
+
+		DataIntegrityViolationException exception = new DataIntegrityViolationException("Database constraint violation",
+				constraintException);
+
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
+
+		DataIntegrityViolationException result = assertThrows(DataIntegrityViolationException.class,
+				() -> registrationService.register(EMAIL, PASSWORD, UserRole.CLIENT));
+
+		assertSame(exception, result);
+	}
+
 }

@@ -1,5 +1,7 @@
 package com.psyweb.auth.service;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -7,6 +9,7 @@ import com.psyweb.auth.validation.PasswordPolicy;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.exception.UserEmailAlreadyExistsException;
 import com.psyweb.user.service.UserService;
 
 @Service
@@ -26,6 +29,27 @@ public class RegistrationService {
 		}
 		PasswordPolicy.validatePassword(rawPassword);
 		String encodedPassword = passwordEncoder.encode(rawPassword);
-		return userService.createUser(normalizedEmail, encodedPassword, role);
+		try {
+			return userService.createUser(normalizedEmail, encodedPassword, role);
+		} catch (DataIntegrityViolationException e) {
+			if (isEmailUniqueViolation(e)) {
+				throw new UserEmailAlreadyExistsException("Email already exists", e);
+			}
+			throw e;
+		}
+	}
+
+	private boolean isEmailUniqueViolation(DataIntegrityViolationException exception) {
+		Throwable cause = exception;
+
+		while (cause != null) {
+			if (cause instanceof ConstraintViolationException constraintException) {
+			    return "23505".equals(constraintException.getSQLState())
+			            && "users_email_key".equals(constraintException.getConstraintName());
+			}
+			cause = cause.getCause();
+		}
+
+		return false;
 	}
 }

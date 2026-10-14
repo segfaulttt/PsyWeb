@@ -4,6 +4,11 @@ package com.psyweb.auth.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +21,7 @@ import com.psyweb.testsupport.PostgreSQLIntegrationTest;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
+import com.psyweb.user.exception.UserEmailAlreadyExistsException;
 import com.psyweb.user.repository.UserRepository;
 
 import jakarta.persistence.EntityManager;
@@ -102,4 +108,58 @@ class RegistrationIntegrationTest extends PostgreSQLIntegrationTest {
 		assertNull(persisted.getEmailVerifiedAt());
 		assertEquals(UserRole.SPECIALIST, persisted.getRole());
 	}
+
+	@Test
+	void shouldAllowOnlyOneConcurrentRegistrationForSameEmail() throws Exception {
+
+		String email = uniqueEmail();
+		String password = "ConcurrentPassword123!";
+
+		CountDownLatch startLatch = new CountDownLatch(1);
+
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+
+			Future<Object> first = executor.submit(() -> {
+				startLatch.await();
+				try {
+					return registrationService.register(email, password, UserRole.CLIENT);
+				} catch (UserEmailAlreadyExistsException e) {
+					return e;
+				}
+			});
+
+			Future<Object> second = executor.submit(() -> {
+				startLatch.await();
+				try {
+					return registrationService.register(email, password, UserRole.CLIENT);
+				} catch (UserEmailAlreadyExistsException e) {
+					return e;
+				}
+			});
+
+			startLatch.countDown();
+
+			Object firstResult = first.get(30, TimeUnit.SECONDS);
+			Object secondResult = second.get(30, TimeUnit.SECONDS);
+
+			int successfulRegistrations = 0;
+			int duplicateEmailErrors = 0;
+
+			for (Object result : new Object[] { firstResult, secondResult }) {
+				if (result instanceof User) {
+					successfulRegistrations++;
+				} else if (result instanceof UserEmailAlreadyExistsException) {
+					duplicateEmailErrors++;
+				} else {
+					fail("Unexpected registration result: " + result);
+				}
+			}
+
+			assertEquals(1, successfulRegistrations);
+			assertEquals(1, duplicateEmailErrors);
+
+			assertTrue(userRepository.findByEmail(email).isPresent());
+		}
+	}
+
 }

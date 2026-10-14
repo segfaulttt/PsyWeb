@@ -12,7 +12,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
+import com.psyweb.user.exception.ConcurrentPasswordChangeException;
 import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.exception.InvalidUserStateException;
 import com.psyweb.user.exception.UserAccessForbiddenException;
 import com.psyweb.user.exception.UserEmailAlreadyExistsException;
 import com.psyweb.user.exception.UserNotFoundException;
@@ -261,6 +263,84 @@ public class UserServiceTest {
 		verify(repository).save(captor.capture());
 
 		assertEquals(hash, captor.getValue().getPasswordHash());
+	}
+
+	@Test
+	void shouldChangePasswordWhenCurrentHashMatches() {
+		Long userId = 1L;
+		String oldHash = "old-hash";
+		String newHash = "new-hash";
+
+		User user = new User("client-password@example.com", oldHash, UserRole.CLIENT, UserStatus.ACTIVE);
+
+		when(repository.findForUpdateById(userId)).thenReturn(Optional.of(user));
+
+		User result = service.changePassword(userId, oldHash, newHash);
+
+		assertSame(user, result);
+		assertEquals(newHash, result.getPasswordHash());
+
+		verify(repository).findForUpdateById(userId);
+	}
+
+	@Test
+	void shouldRejectPasswordChangeWhenUserNotFound() {
+		Long userId = 100L;
+
+		when(repository.findForUpdateById(userId)).thenReturn(Optional.empty());
+
+		assertThrows(UserNotFoundException.class, () -> service.changePassword(userId, "old-hash", "new-hash"));
+
+		verify(repository).findForUpdateById(userId);
+	}
+
+	@Test
+	void shouldRejectPasswordChangeForBlockedUser() {
+		Long userId = 1L;
+		String oldHash = "old-hash";
+
+		User blockedUser = new User("blocked-password@example.com", oldHash, UserRole.CLIENT, UserStatus.BLOCKED);
+
+		when(repository.findForUpdateById(userId)).thenReturn(Optional.of(blockedUser));
+
+		assertThrows(InvalidUserStateException.class, () -> service.changePassword(userId, oldHash, "new-hash"));
+
+		assertEquals(oldHash, blockedUser.getPasswordHash());
+
+		verify(repository).findForUpdateById(userId);
+	}
+
+	@Test
+	void shouldRejectConcurrentPasswordChange() {
+		Long userId = 1L;
+		String previousHash = "old-hash";
+		String actualHash = "already-updated-hash";
+
+		User user = new User("concurrent-password@example.com", actualHash, UserRole.CLIENT, UserStatus.ACTIVE);
+
+		when(repository.findForUpdateById(userId)).thenReturn(Optional.of(user));
+
+		ConcurrentPasswordChangeException exception = assertThrows(ConcurrentPasswordChangeException.class,
+				() -> service.changePassword(userId, previousHash, "new-hash"));
+
+		assertEquals("PASSWORD_CONFLICT", exception.code());
+		assertEquals(actualHash, user.getPasswordHash());
+
+		verify(repository).findForUpdateById(userId);
+	}
+
+	@Test
+	void shouldRejectBlankNewPasswordHash() {
+		Long userId = 1L;
+		String oldHash = "old-hash";
+
+		User user = new User("blank-hash@example.com", oldHash, UserRole.CLIENT, UserStatus.ACTIVE);
+
+		when(repository.findForUpdateById(userId)).thenReturn(Optional.of(user));
+
+		assertThrows(InvalidUserDataException.class, () -> service.changePassword(userId, oldHash, "   "));
+
+		assertEquals(oldHash, user.getPasswordHash());
 	}
 
 }

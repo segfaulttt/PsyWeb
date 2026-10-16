@@ -1,5 +1,7 @@
 package com.psyweb.specialist.service;
 
+import java.time.Duration;
+
 import org.springframework.stereotype.Service;
 
 import com.psyweb.specialist.domain.Specialist;
@@ -7,6 +9,9 @@ import com.psyweb.specialist.exception.InvalidSpecialistDataException;
 import com.psyweb.specialist.exception.SpecialistNotEligibleException;
 import com.psyweb.specialist.exception.SpecialistNotFoundException;
 import com.psyweb.specialist.repository.SpecialistRepository;
+import com.psyweb.user.domain.User;
+import com.psyweb.user.domain.UserRole;
+import com.psyweb.user.domain.UserStatus;
 
 import jakarta.transaction.Transactional;
 
@@ -24,6 +29,17 @@ public class SpecialistService {
 		}
 	}
 
+	@Transactional
+	public Specialist createSpecialist(User user, String firstName, String lastName, Duration minimumBookingNotice,
+			Duration clientCancellationNotice) {
+		if (user == null || user.getStatus() != UserStatus.ACTIVE || user.getRole() != UserRole.SPECIALIST) {
+			throw new InvalidSpecialistDataException("Invalid user");
+		}
+		Specialist specialist = new Specialist(user, firstName, lastName, minimumBookingNotice,
+				clientCancellationNotice);
+		return specialistRepository.save(specialist);
+	}
+
 	// find specialist:
 
 	public Specialist getSpecialist(Long specialistId) {
@@ -33,7 +49,7 @@ public class SpecialistService {
 
 		return specialist;
 	}
-	
+
 	@Transactional
 	public Specialist getSpecialistForUpdate(Long specialistId) {
 		validateSpecialistId(specialistId);

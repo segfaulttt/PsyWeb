@@ -19,3 +19,8 @@ psyweb:
     ttl: 10m
     expiration-scan-interval: 1m
     expiration-batch-size: 100
+
+  specialist:
+    defaults:
+      minimum-booking-notice: 0m
+      client-cancellation-notice: 0m

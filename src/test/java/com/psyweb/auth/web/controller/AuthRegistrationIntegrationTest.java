@@ -25,7 +25,7 @@ import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.repository.UserRepository;
 
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 class AuthRegistrationIntegrationTest
         extends PostgreSQLIntegrationTest {
 

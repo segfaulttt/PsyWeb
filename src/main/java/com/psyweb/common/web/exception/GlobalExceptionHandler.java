@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -107,6 +108,13 @@ public class GlobalExceptionHandler {
 		ValidationApiError error = new ValidationApiError("VALIDATION_ERROR", "Request validation failed", request.getRequestURI(),
 				Instant.now(clock), fieldErrors);
 
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+	}
+	
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiError> handleHttpMessageNotReadable(HttpMessageNotReadableException exception, HttpServletRequest request) {
+		log.debug("Malformed request body at {}", request.getRequestURI());
+		ApiError error = new ApiError("MALFORMED_REQUEST_BODY", "Malformed request body", request.getRequestURI(), Instant.now(clock));
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
 	}
 }

@@ -1,33 +1,19 @@
 
 import './App.css'
+import { useState } from 'react'
+import { RegistrationModal } from './components/RegistrationModal'
+import type { RegistrationRole } from './types/registration'
+import { PsyWebLogo } from './components/PsyWebLogo'
 
 function App() {
+	const [registrationRole, setRegistrationRole] =
+	useState<RegistrationRole | null>(null)
   return (
     <main className="site">
 		<div className="hero-visual" aria-hidden="true" />
-      <header className="site-header">
-        <div className="identity">
-          <div className="brand">
-            PsyWeb <svg
-		    className="brand-flower"
-		    viewBox="0 0 48 48"
-		    fill="none"
-		    aria-hidden="true"
-		  >
-		    <g fill="#8d9c73">
-		      <ellipse cx="24" cy="11" rx="5" ry="10" />
-		      <ellipse cx="24" cy="37" rx="5" ry="10" />
-		      <ellipse cx="11" cy="24" rx="10" ry="5" />
-		      <ellipse cx="37" cy="24" rx="10" ry="5" />
-		      <ellipse cx="15" cy="15" rx="5" ry="9" transform="rotate(-45 15 15)" />
-		      <ellipse cx="33" cy="33" rx="5" ry="9" transform="rotate(-45 33 33)" />
-		    </g>
-		  </svg>
-          </div>
-          <span className="brand-subtitle">
-            пространство для заботы о себе
-          </span>
-        </div>
+		
+		<header className="site-header">
+        <PsyWebLogo />
 
         <nav className="navigation" aria-label="Основная навигация">
           <span>О платформе</span>
@@ -38,7 +24,13 @@ function App() {
 
         <div className="header-actions">
           <span className="login-label">Войти</span>
-          <span className="signup-label">Регистрация</span>
+		  <button
+		    className="signup-label"
+		    type="button"
+		    onClick={() => setRegistrationRole('CLIENT')}
+		  >
+		    Регистрация
+		  </button>
         </div>
       </header>
 
@@ -72,9 +64,13 @@ function App() {
                 Найдите специалиста, который подходит именно вам,
                 и сделайте первый шаг к позитивным изменениям.
               </p>
-              <span className="audience-action">
-                Найти специалиста <span>→</span>
-              </span>
+			  <button
+			    className="audience-action"
+			    type="button"
+			    onClick={() => setRegistrationRole('CLIENT')}
+			  >
+			    Найти специалиста <span>{'\u2192'}</span>
+			  </button>
             </article>
 
             <article className="audience-card">
@@ -84,9 +80,13 @@ function App() {
                 Развивайте практику, находите новых клиентов
                 и становитесь частью профессионального сообщества.
               </p>
-              <span className="audience-action audience-action-light">
-                Создать профиль <span>→</span>
-              </span>
+			  <button
+			    className="audience-action audience-action-light"
+			    type="button"
+			    onClick={() => setRegistrationRole('SPECIALIST')}
+			  >
+			    Создать профиль <span>{'\u2192'}</span>
+			  </button>
             </article>
           </div>
         </div>
@@ -117,6 +117,13 @@ function App() {
           </div>
         </div>
       </section>
+	  {registrationRole !== null && (
+	    <RegistrationModal
+	      role={registrationRole}
+	      onRoleChange={setRegistrationRole}
+	      onClose={() => setRegistrationRole(null)}
+	    />
+	  )}
     </main>
   )
 }

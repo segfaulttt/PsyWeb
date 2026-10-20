@@ -81,7 +81,7 @@ export function RegistrationModal({
           </button>
         </div>
 
-        <RegistrationForm role={role} />
+        <RegistrationForm key={role} role={role} />
       </section>
     </div>
   )

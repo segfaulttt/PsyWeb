@@ -100,6 +100,7 @@ public class RefreshSessionService {
 		}
 		oldToken.consumeToken(now);
 		session.addLastUsedAt(now);
+		entityManager.flush();
 		String newRawToken = createRefreshToken(session);
 		return new Success(new IssuedRefreshToken(newRawToken, session.getExpiresAt()));
 	}

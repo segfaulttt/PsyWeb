@@ -24,3 +24,7 @@ psyweb:
     defaults:
       minimum-booking-notice: 0m
       client-cancellation-notice: 0m
+
+  auth:
+    expiration-scan-interval: 1m
+    expiration-batch-size: 100

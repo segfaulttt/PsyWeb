@@ -110,7 +110,7 @@ public class RefreshSession {
 		if (!this.expiresAt.isAfter(time)) {
 			throw new IllegalArgumentException("Incorrect time");
 		}
-		if (this.lastUsedAt != null && !this.lastUsedAt.isBefore(time)) {
+		if (this.lastUsedAt != null && time.isBefore(this.lastUsedAt)) {
 			throw new IllegalArgumentException("Incorrect time");
 		}
 		this.lastUsedAt = time;

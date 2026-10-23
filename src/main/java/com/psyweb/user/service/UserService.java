@@ -88,6 +88,26 @@ public class UserService {
 		return user;
 	}
 
+	public User getActiveUserForUpdate(Long userId) {
+		if (userId == null) {
+			throw new InvalidUserDataException("User ID cannot be null");
+		}
+		User user = userRepository.findForUpdateById(userId)
+				.orElseThrow(() -> new UserNotFoundException("User not found"));
+		if (user.getStatus() != UserStatus.ACTIVE) {
+			throw new UserAccessForbiddenException("User must have status 'ACTIVE'");
+		}
+		return user;
+	}
+
+	public User getUserForUpdate(Long userId) {
+		if (userId == null) {
+			throw new InvalidUserDataException("User ID cannot be null");
+		}
+		return userRepository.findForUpdateById(userId)
+				.orElseThrow(() -> new UserNotFoundException("User not found"));
+	}
+
 	public User findUserByEmail(String email) {
 		email = User.normalizeEmail(email);
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));

@@ -28,3 +28,11 @@ psyweb:
   auth:
     expiration-scan-interval: 1m
     expiration-batch-size: 100
+
+    jwt:
+      private-key-path: ${PSYWEB_JWT_PRIVATE_KEY_PATH:}
+      public-key-path: ${PSYWEB_JWT_PUBLIC_KEY_PATH:}
+      key-id: psyweb-rsa-2026-01
+      issuer: psyweb
+      audience: psyweb-api
+      access-token-ttl: 15m

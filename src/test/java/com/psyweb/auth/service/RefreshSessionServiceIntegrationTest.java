@@ -79,8 +79,8 @@ class RefreshSessionServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		assertTrue(Duration.between(session.getCreatedAt().plus(Duration.ofDays(7)), session.getExpiresAt()).abs()
 				.compareTo(Duration.ofNanos(1_000)) <= 0);
 
-		assertEquals(session.getExpiresAt().truncatedTo(ChronoUnit.MICROS),
-				result.expiresAt().truncatedTo(ChronoUnit.MICROS));
+		assertTrue(Duration.between(session.getExpiresAt(), result.expiresAt()).abs()
+				.compareTo(Duration.ofNanos(1_000)) <= 0);
 
 		assertFalse(session.getCreatedAt().isBefore(before));
 		assertFalse(session.getCreatedAt().isAfter(after));

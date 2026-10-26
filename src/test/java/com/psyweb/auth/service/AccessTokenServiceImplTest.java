@@ -42,6 +42,7 @@ import com.psyweb.auth.config.JwtConfiguration;
 import com.psyweb.auth.config.JwtKeyPair;
 import com.psyweb.auth.config.JwtProperties;
 import com.psyweb.auth.security.AccessTokenClaimsValidator;
+import com.psyweb.auth.service.dto.IssuedAccessToken;
 import com.psyweb.auth.service.impl.AccessTokenServiceImpl;
 import com.psyweb.user.domain.UserRole;
 
@@ -93,12 +94,12 @@ class AccessTokenServiceImplTest {
 
 	@Test
 	void shouldGenerateAndVerifyClientAccessToken() {
-		String token = service.generateAccessToken(42L, UserRole.CLIENT);
+		IssuedAccessToken token = service.generateAccessToken(42L, UserRole.CLIENT);
 
 		assertNotNull(token);
-		assertEquals(3, token.split("\\.").length);
+		assertEquals(3, token.accessToken().split("\\.").length);
 
-		AuthenticatedUser actual = service.verifyAccessToken(token);
+		AuthenticatedUser actual = service.verifyAccessToken(token.accessToken());
 
 		assertEquals(42L, actual.userId());
 		assertEquals(UserRole.CLIENT, actual.role());
@@ -107,9 +108,9 @@ class AccessTokenServiceImplTest {
 	@Test
 	void shouldGenerateAndVerifyAllUserRoles() {
 		for (UserRole role : UserRole.values()) {
-			String token = service.generateAccessToken(100L, role);
+			IssuedAccessToken token = service.generateAccessToken(100L, role);
 
-			AuthenticatedUser actual = service.verifyAccessToken(token);
+			AuthenticatedUser actual = service.verifyAccessToken(token.accessToken());
 
 			assertEquals(100L, actual.userId());
 			assertEquals(role, actual.role());
@@ -118,9 +119,9 @@ class AccessTokenServiceImplTest {
 
 	@Test
 	void shouldGenerateCorrectClaimsAndHeaders() {
-		String token = service.generateAccessToken(42L, UserRole.SPECIALIST);
+		IssuedAccessToken token = service.generateAccessToken(42L, UserRole.SPECIALIST);
 
-		Jwt jwt = decoder.decode(token);
+		Jwt jwt = decoder.decode(token.accessToken());
 
 		assertEquals(ISSUER, jwt.getClaimAsString("iss"));
 		assertEquals("42", jwt.getSubject());
@@ -169,9 +170,9 @@ class AccessTokenServiceImplTest {
 
 	@Test
 	void shouldRejectTamperedPayload() {
-		String original = service.generateAccessToken(42L, UserRole.CLIENT);
+		IssuedAccessToken original = service.generateAccessToken(42L, UserRole.CLIENT);
 
-		String[] parts = original.split("\\.");
+		String[] parts = original.accessToken().split("\\.");
 
 		String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
 

@@ -74,7 +74,8 @@ public class RefreshSessionService {
 		String hashedToken = tokenGenerator.hashToken(rawRefreshToken);
 		RefreshToken oldToken = tokenRepository.findByTokenHash(hashedToken)
 				.orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
-		userService.getActiveUserForUpdate(sessionRepository.findById(oldToken.getSessionId()).orElseThrow().getUserId());
+		User user = userService
+				.getActiveUserForUpdate(sessionRepository.findById(oldToken.getSessionId()).orElseThrow().getUserId());
 		RefreshSession session = sessionRepository.findForRefreshById(oldToken.getSessionId())
 				.orElseThrow(() -> new IllegalArgumentException("Session not found"));
 		oldToken = tokenRepository.findForRotationById(oldToken.getId())
@@ -102,9 +103,10 @@ public class RefreshSessionService {
 		session.addLastUsedAt(now);
 		entityManager.flush();
 		String newRawToken = createRefreshToken(session);
-		return new Success(new IssuedRefreshToken(newRawToken, session.getExpiresAt()));
+		AuthenticatedUser authUser = new AuthenticatedUser(user.getId(), user.getRole());
+		return new Success(new IssuedRefreshToken(newRawToken, session.getExpiresAt()), authUser);
 	}
-	
+
 	@Transactional
 	public void logout(String rawRefreshToken) {
 		if (rawRefreshToken == null) {
@@ -124,14 +126,14 @@ public class RefreshSessionService {
 		entityManager.refresh(session);
 		entityManager.refresh(oldToken);
 		Instant now = Instant.now(clock);
-	
+
 		if (session.getRevokedAt() != null) {
 			return;
 		}
-		
+
 		session.addRevokedAt(now);
 	}
-	
+
 	@Transactional
 	public void logoutAll(Long userId) {
 		if (userId == null) {

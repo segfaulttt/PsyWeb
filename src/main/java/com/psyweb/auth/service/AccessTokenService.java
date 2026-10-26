@@ -1,10 +1,11 @@
 package com.psyweb.auth.service;
 
+import com.psyweb.auth.service.dto.IssuedAccessToken;
 import com.psyweb.user.domain.UserRole;
 
 public interface AccessTokenService {
 
-    String generateAccessToken(Long userId, UserRole role);
+	IssuedAccessToken generateAccessToken(Long userId, UserRole role);
 
     AuthenticatedUser verifyAccessToken(String token);
 }

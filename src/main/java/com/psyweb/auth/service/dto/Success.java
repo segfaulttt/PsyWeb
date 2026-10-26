@@ -1,5 +1,7 @@
 package com.psyweb.auth.service.dto;
 
-public record Success(IssuedRefreshToken issuedRefreshToken) implements RefreshRotationResult {
+import com.psyweb.auth.service.AuthenticatedUser;
 
+public record Success(IssuedRefreshToken issuedRefreshToken, AuthenticatedUser authenticatedUser)
+		implements RefreshRotationResult {
 }

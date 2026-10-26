@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -56,12 +55,6 @@ class AuthServiceTest {
 
 	@InjectMocks
 	private AuthService authService;
-
-	@BeforeEach
-	void setUp() {
-		// Common stubbing is deliberately omitted:
-		// each test configures only the dependencies it actually uses.
-	}
 
 	@Test
 	void shouldLoginSuccessfully() {

@@ -22,6 +22,21 @@ import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.repository.UserRepository;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.time.Duration;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+
+import com.psyweb.auth.service.dto.AuthenticationResult;
+import com.psyweb.specialist.domain.Specialist;
+import com.psyweb.specialist.domain.SpecialistStatus;
+import com.psyweb.specialist.repository.SpecialistRepository;
+import com.psyweb.user.exception.UserAccessForbiddenException;
+
 class AuthServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Autowired
@@ -35,6 +50,9 @@ class AuthServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private SpecialistRepository specialistRepository;
 
 	@MockitoSpyBean
 	private AccessTokenService accessTokenService;
@@ -63,4 +81,80 @@ class AuthServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 		assertTrue(sessions.isEmpty(), "Refresh session must not persist when JWT generation fails");
 	}
+
+	@ParameterizedTest
+	@EnumSource(SpecialistStatus.class)
+	void shouldAllowActiveSpecialistToLoginRegardlessOfApprovalStatus(SpecialistStatus specialistStatus) {
+
+		String email = "active-specialist-" + UUID.randomUUID() + "@example.com";
+		String rawPassword = "test-password";
+
+		User user = userRepository.saveAndFlush(
+				new User(email, passwordEncoder.encode(rawPassword), UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(user, "Anna", "Test", Duration.ZERO, Duration.ZERO);
+
+		switch (specialistStatus) {
+		case PENDING -> {
+		}
+		case APPROVED -> specialist.approve();
+		case REJECTED -> specialist.reject();
+		case SUSPENDED -> {
+			specialist.approve();
+			specialist.suspend();
+		}
+		}
+
+		specialistRepository.saveAndFlush(specialist);
+
+		AuthenticationResult result = authService.login(email, rawPassword);
+
+		assertNotNull(result.accessToken());
+		assertNotNull(result.refreshToken());
+		assertNotNull(result.expiresAt());
+
+		assertEquals(UserRole.SPECIALIST, accessTokenService.verifyAccessToken(result.accessToken()).role());
+
+		assertEquals(user.getId(), accessTokenService.verifyAccessToken(result.accessToken()).userId());
+
+		assertEquals(specialistStatus, specialistRepository.findById(user.getId()).orElseThrow().getApprovalStatus());
+
+		assertEquals(1, sessionRepository.findByUserId(user.getId()).size());
+	}
+
+	@ParameterizedTest
+	@EnumSource(SpecialistStatus.class)
+	void shouldRejectBlockedSpecialistRegardlessOfApprovalStatus(SpecialistStatus specialistStatus) {
+
+		String email = "blocked-specialist-" + UUID.randomUUID() + "@example.com";
+		String rawPassword = "test-password";
+
+		User user = userRepository.saveAndFlush(
+				new User(email, passwordEncoder.encode(rawPassword), UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		Specialist specialist = new Specialist(user, "Anna", "Blocked", Duration.ZERO, Duration.ZERO);
+
+		switch (specialistStatus) {
+		case PENDING -> {
+		}
+		case APPROVED -> specialist.approve();
+		case REJECTED -> specialist.reject();
+		case SUSPENDED -> {
+			specialist.approve();
+			specialist.suspend();
+		}
+		}
+
+		specialistRepository.saveAndFlush(specialist);
+
+		user.block();
+		userRepository.saveAndFlush(user);
+
+		assertThrows(UserAccessForbiddenException.class, () -> authService.login(email, rawPassword));
+
+		assertEquals(0, sessionRepository.findByUserId(user.getId()).size());
+
+		assertEquals(UserStatus.BLOCKED, userRepository.findById(user.getId()).orElseThrow().getStatus());
+	}
+
 }

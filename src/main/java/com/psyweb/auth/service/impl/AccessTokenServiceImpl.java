@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import com.psyweb.auth.config.JwtProperties;
 import com.psyweb.auth.service.AccessTokenService;
 import com.psyweb.auth.service.AuthenticatedUser;
+import com.psyweb.auth.service.dto.IssuedAccessToken;
 import com.psyweb.user.domain.UserRole;
 
 @Service
@@ -35,18 +36,20 @@ public class AccessTokenServiceImpl implements AccessTokenService {
 	}
 
 	@Override
-	public String generateAccessToken(Long userId, UserRole role) {
+	public IssuedAccessToken generateAccessToken(Long userId, UserRole role) {
 		if (userId == null || userId <= 0 || role == null) {
 			throw new IllegalArgumentException("Invalid access token arguments");
 		}
 
 		Instant now = Instant.now(clock);
+		Instant expiresAt = now.plus(jwtProperties.accessTokenTtl());
 		JwtClaimsSet claims = JwtClaimsSet.builder().issuer(jwtProperties.issuer()).subject(String.valueOf(userId))
 				.audience(List.of(jwtProperties.audience())).claim("role", role.name()).issuedAt(now)
-				.expiresAt(now.plus(jwtProperties.accessTokenTtl())).build();
+				.expiresAt(expiresAt).build();
 		JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).keyId(jwtProperties.keyId()).build();
 		JwtEncoderParameters params = JwtEncoderParameters.from(header, claims);
-		return jwtEncoder.encode(params).getTokenValue();
+		String accessToken = jwtEncoder.encode(params).getTokenValue();
+		return new IssuedAccessToken(accessToken, expiresAt);
 	}
 
 	@Override

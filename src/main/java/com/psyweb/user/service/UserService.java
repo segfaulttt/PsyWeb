@@ -114,4 +114,10 @@ public class UserService {
 
 		return user;
 	}
+	
+	public User findUserForUpdateByEmail(String email) {
+		email = User.normalizeEmail(email);
+		User user = userRepository.findForUpdateByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		return user;
+	}
 }

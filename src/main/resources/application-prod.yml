@@ -6,3 +6,9 @@ psyweb:
     cors:
       allowed-origins:
         - ${PSYWEB_FRONTEND_ORIGIN}
+
+spring:
+  datasource:
+    url: ${PSYWEB_DB_URL}
+    username: ${PSYWEB_DB_USERNAME}
+    password: ${PSYWEB_DB_PASSWORD}

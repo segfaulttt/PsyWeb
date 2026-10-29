@@ -1,8 +1,5 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/psyweb
-    username: psyweb
-    password: psyweb
     driver-class-name: org.postgresql.Driver
 
   jpa:

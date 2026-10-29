@@ -9,6 +9,8 @@ import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.repository.UserRepository;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -193,5 +195,55 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 
 		mockMvc.perform(get("/api/admin/security-test").header("Authorization", "Bearer " + token))
 				.andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	void shouldRequireAuthenticationForPostWithoutCsrfToken() throws Exception {
+		mockMvc.perform(post("/api/admin/security-test")).andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", startsWith("Bearer")))
+				.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void shouldAllowAuthenticatedAdminPostWithoutCsrfToken() throws Exception {
+		User admin = userRepository.saveAndFlush(new User("security-" + UUID.randomUUID() + "@example.com",
+				"test-password-hash", UserRole.ADMIN, UserStatus.ACTIVE));
+
+		String token = accessTokenService.generateAccessToken(admin.getId(), admin.getRole()).accessToken();
+
+		mockMvc.perform(post("/api/admin/security-test").header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk()).andExpect(content().string("POST_OK"));
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "X-Content-Type-Options, nosniff", "X-Frame-Options, DENY",
+			"Referrer-Policy, strict-origin-when-cross-origin",
+			"Content-Security-Policy, default-src 'none'; frame-ancestors 'none'" })
+	void shouldReturnSecurityHeaders(String headerName, String expectedValue) throws Exception {
+
+		mockMvc.perform(get("/api/admin/security-test")).andExpect(status().isUnauthorized())
+				.andExpect(header().string(headerName, expectedValue));
+	}
+
+	@Test
+	void shouldReturnSecurityHeadersForPublicEndpoint() throws Exception {
+		mockMvc.perform(post("/api/auth/register/client").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isBadRequest()).andExpect(header().string("X-Content-Type-Options", "nosniff"))
+				.andExpect(header().string("X-Frame-Options", "DENY"))
+				.andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))
+				.andExpect(header().string("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"));
+	}
+
+	@Test
+	void shouldReturnHstsHeaderForHttpsRequest() throws Exception {
+		mockMvc.perform(get("/api/admin/security-test").secure(true)).andExpect(status().isUnauthorized())
+				.andExpect(header().exists("Strict-Transport-Security"))
+				.andExpect(header().string("Strict-Transport-Security", containsString("max-age=31536000")));
+	}
+
+	@Test
+	void shouldNotReturnHstsHeaderForHttpRequest() throws Exception {
+		mockMvc.perform(get("/api/admin/security-test").secure(false)).andExpect(status().isUnauthorized())
+				.andExpect(header().doesNotExist("Strict-Transport-Security"));
 	}
 }

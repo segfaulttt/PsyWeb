@@ -233,4 +233,17 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 				.andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))
 				.andExpect(header().string("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"));
 	}
+
+	@Test
+	void shouldReturnHstsHeaderForHttpsRequest() throws Exception {
+		mockMvc.perform(get("/api/admin/security-test").secure(true)).andExpect(status().isUnauthorized())
+				.andExpect(header().exists("Strict-Transport-Security"))
+				.andExpect(header().string("Strict-Transport-Security", containsString("max-age=31536000")));
+	}
+
+	@Test
+	void shouldNotReturnHstsHeaderForHttpRequest() throws Exception {
+		mockMvc.perform(get("/api/admin/security-test").secure(false)).andExpect(status().isUnauthorized())
+				.andExpect(header().doesNotExist("Strict-Transport-Security"));
+	}
 }

@@ -9,7 +9,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 import com.psyweb.auth.security.ActiveUserAuthorizationManager;
 import com.psyweb.auth.security.ApiAccessDeniedHandler;
@@ -45,9 +44,7 @@ public class SecurityConfig {
 		        .authenticationEntryPoint(apiAuthenticationEntryPoint)
 		        .accessDeniedHandler(apiAccessDeniedHandler));
 
-		http.csrf(csrf -> csrf.ignoringRequestMatchers(
-				PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/auth/register/client"),
-				PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/auth/register/specialist")));
+		http.csrf(csrf -> csrf.disable());
 
 		http.cors(Customizer.withDefaults());
 		

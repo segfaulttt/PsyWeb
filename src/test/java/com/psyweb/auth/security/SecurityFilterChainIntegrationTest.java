@@ -194,4 +194,22 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 		mockMvc.perform(get("/api/admin/security-test").header("Authorization", "Bearer " + token))
 				.andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
+
+	@Test
+	void shouldRequireAuthenticationForPostWithoutCsrfToken() throws Exception {
+		mockMvc.perform(post("/api/admin/security-test")).andExpect(status().isUnauthorized())
+				.andExpect(header().string("WWW-Authenticate", startsWith("Bearer")))
+				.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void shouldAllowAuthenticatedAdminPostWithoutCsrfToken() throws Exception {
+		User admin = userRepository.saveAndFlush(new User("security-" + UUID.randomUUID() + "@example.com",
+				"test-password-hash", UserRole.ADMIN, UserStatus.ACTIVE));
+
+		String token = accessTokenService.generateAccessToken(admin.getId(), admin.getRole()).accessToken();
+
+		mockMvc.perform(post("/api/admin/security-test").header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk()).andExpect(content().string("POST_OK"));
+	}
 }

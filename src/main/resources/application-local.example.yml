@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/psyweb
+    username: psyweb
+    password: psyweb
+
+psyweb:
+  security:
+    cors:
+      allowed-origins:
+        - http://localhost:3000

@@ -36,8 +36,3 @@ psyweb:
       issuer: psyweb
       audience: psyweb-api
       access-token-ttl: 15m
-
-  security:
-    cors:
-      allowed-origins:
-        - http://localhost:3000

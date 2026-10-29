@@ -1,0 +1,8 @@
+server:
+  forward-headers-strategy: framework
+
+psyweb:
+  security:
+    cors:
+      allowed-origins:
+        - ${PSYWEB_FRONTEND_ORIGIN}

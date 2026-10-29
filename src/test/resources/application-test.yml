@@ -1,0 +1,5 @@
+psyweb:
+  security:
+    cors:
+      allowed-origins:
+        - http://localhost:3000

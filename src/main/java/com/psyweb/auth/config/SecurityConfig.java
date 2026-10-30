@@ -11,7 +11,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.http.HttpMethod;
 
-import com.psyweb.auth.security.ActiveUserAuthorizationManager;
+import com.psyweb.auth.authorization.AuthorizationPolicy;
+import com.psyweb.auth.security.RoleAuthorizationManager;
+import com.psyweb.user.domain.UserRole;
 import com.psyweb.auth.security.ApiAccessDeniedHandler;
 import com.psyweb.auth.security.ApiAuthenticationEntryPoint;
 import com.psyweb.auth.security.SecurityErrorResponseWriter;
@@ -20,11 +22,8 @@ import com.psyweb.user.service.UserService;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.security.config.http.SessionCreationPolicy;
-import static org.springframework.security.authorization.AuthorizationManagers.allOf;
 
 import java.time.Clock;
-
-import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasRole;
 
 @Configuration
 @EnableConfigurationProperties(CorsProperties.class)
@@ -32,14 +31,12 @@ public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter,
-			ActiveUserAuthorizationManager activeUserAuthorizationManager,
-			ApiAuthenticationEntryPoint apiAuthenticationEntryPoint, ApiAccessDeniedHandler apiAccessDeniedHandler)
-			throws Exception {
+			RoleAuthorizationManager adminAuthorizationManager, ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
+			ApiAccessDeniedHandler apiAccessDeniedHandler) throws Exception {
 
 		http.authorizeHttpRequests(auth -> auth
 				.requestMatchers(HttpMethod.POST, "/api/auth/register/client", "/api/auth/register/specialist")
-				.permitAll().requestMatchers("/api/admin/**")
-				.access(allOf(activeUserAuthorizationManager, hasRole("ADMIN"))).anyRequest().denyAll());
+				.permitAll().requestMatchers("/api/admin/**").access(adminAuthorizationManager).anyRequest().denyAll());
 
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint)
 				.accessDeniedHandler(apiAccessDeniedHandler));
@@ -78,11 +75,6 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	ActiveUserAuthorizationManager activeUserAuthorizationManager(UserService userService) {
-		return new ActiveUserAuthorizationManager(userService);
-	}
-
-	@Bean
 	SecurityErrorResponseWriter securityErrorResponseWriter(ObjectMapper objectMapper, Clock clock) {
 		return new SecurityErrorResponseWriter(objectMapper, clock);
 	}
@@ -95,5 +87,16 @@ public class SecurityConfig {
 	@Bean
 	ApiAccessDeniedHandler apiAccessDeniedHandler(SecurityErrorResponseWriter responseWriter) {
 		return new ApiAccessDeniedHandler(responseWriter);
+	}
+
+	@Bean
+	AuthorizationPolicy authorizationPolicy() {
+		return new AuthorizationPolicy();
+	}
+
+	@Bean
+	RoleAuthorizationManager adminAuthorizationManager(UserService userService,
+			AuthorizationPolicy authorizationPolicy) {
+		return new RoleAuthorizationManager(userService, authorizationPolicy, UserRole.ADMIN);
 	}
 }

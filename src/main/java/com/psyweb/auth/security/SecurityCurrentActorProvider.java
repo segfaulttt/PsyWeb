@@ -43,8 +43,8 @@ public class SecurityCurrentActorProvider implements CurrentActorProvider{
 				throw new UnauthenticatedActorException("Invalid authentication identity");
 			}
 			role = UserRole.valueOf(userRole);
-		} catch (IllegalArgumentException ie) {
-			throw new UnauthenticatedActorException("");
+		} catch (IllegalArgumentException e) {
+			throw new UnauthenticatedActorException("Invalid authentication identity", e);
 		}
 		return new CurrentActor(userId, role);
 	}

@@ -22,6 +22,8 @@ import com.psyweb.user.service.UserService;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextHolderStrategy;
 
 import java.time.Clock;
 
@@ -98,5 +100,10 @@ public class SecurityConfig {
 	RoleAuthorizationManager adminAuthorizationManager(UserService userService,
 			AuthorizationPolicy authorizationPolicy) {
 		return new RoleAuthorizationManager(userService, authorizationPolicy, UserRole.ADMIN);
+	}
+	
+	@Bean
+	SecurityContextHolderStrategy securityContextHolderStrategy() {
+		return SecurityContextHolder.getContextHolderStrategy();
 	}
 }

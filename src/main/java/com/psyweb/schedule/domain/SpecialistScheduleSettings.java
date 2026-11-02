@@ -58,6 +58,22 @@ public class SpecialistScheduleSettings {
 		this.updatedAt = createdAt;
 	}
 	
+	public Long getSpecialistId() {
+	    return specialistId;
+	}
+
+	public ScheduleMode getMode() {
+	    return mode;
+	}
+
+	public int getBookingHorizonDays() {
+	    return bookingHorizonDays;
+	}
+
+	public Instant getUpdatedAt() {
+	    return updatedAt;
+	}
+	
 	public void changeMode(ScheduleMode newMode, Instant updatedAt) {
 		if (updatedAt == null) {
 			throw new IllegalArgumentException("Update time cannot be null");

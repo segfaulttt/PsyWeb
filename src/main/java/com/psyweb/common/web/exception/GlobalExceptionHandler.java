@@ -23,6 +23,7 @@ import com.psyweb.common.exception.ExpiredException;
 import com.psyweb.common.exception.ForbiddenException;
 import com.psyweb.common.exception.InvalidStateException;
 import com.psyweb.common.exception.NotFoundException;
+import com.psyweb.common.exception.UnauthorizedException;
 import com.psyweb.common.exception.ValidationException;
 import com.psyweb.common.web.dto.ApiError;
 import com.psyweb.common.web.dto.ValidationApiError;
@@ -116,5 +117,11 @@ public class GlobalExceptionHandler {
 		log.debug("Malformed request body at {}", request.getRequestURI());
 		ApiError error = new ApiError("MALFORMED_REQUEST_BODY", "Malformed request body", request.getRequestURI(), Instant.now(clock));
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+	}
+	
+	@ExceptionHandler(UnauthorizedException.class)
+	public ResponseEntity<ApiError> handleHttpUnauthorized(UnauthorizedException exception, HttpServletRequest request) {
+		ApiError error = createApiError(exception, request);
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}
 }

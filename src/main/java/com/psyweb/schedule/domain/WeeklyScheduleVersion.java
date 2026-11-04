@@ -67,6 +67,10 @@ public class WeeklyScheduleVersion {
 		this.createdAt = createdAt;
 	}
 
+	public WeeklyScheduleVersion(Specialist specialist, LocalDate effectiveFrom, Instant createdAt) {
+		this(specialist, effectiveFrom, null, createdAt);
+	}
+
 	public UUID getId() {
 		return id;
 	}

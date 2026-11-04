@@ -40,4 +40,12 @@ public interface WeeklyScheduleVersionRepository extends JpaRepository<WeeklySch
 			""")
 	List<WeeklyScheduleVersion> findOverlappingPeriod(@Param("specialistId") Long specialistId,
 			@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+	@Query("""
+			SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END
+			FROM WeeklyScheduleVersion v
+			WHERE v.specialist.id = :specialistId
+			  AND v.effectiveFrom >= :date
+			""")
+	boolean existsVersionStartingOnOrAfter(@Param("specialistId") Long specialistId, @Param("date") LocalDate date);
 }

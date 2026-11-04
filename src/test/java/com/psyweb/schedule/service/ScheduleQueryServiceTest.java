@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -213,7 +214,6 @@ class ScheduleQueryServiceTest {
 
 		assertTrue(result.isEmpty());
 
-		// Empty OVERRIDE must NOT fall back to weekly schedule.
 		verifyNoInteractions(weeklyRepository);
 	}
 
@@ -264,4 +264,213 @@ class ScheduleQueryServiceTest {
 
 		assertEquals(List.of(workingInterval(9, 12), workingInterval(15, 18)), result);
 	}
+
+	@Test
+	void shouldReturnManualIntervalsForFloatingDateRange() {
+		setMode(ScheduleMode.FLOATING);
+
+		LocalDate fromDate = DATE;
+		LocalDate toDate = DATE.plusDays(2);
+
+		DateSchedule firstDay = dateSchedule(DateSchedulePurpose.MANUAL, 9, 12);
+
+		DateSchedule thirdDay = new DateSchedule(specialist, toDate, DateSchedulePurpose.MANUAL, NOW);
+		thirdDay.addInterval(new DateScheduleInterval(LocalTime.of(14, 0), LocalTime.of(18, 0)));
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, fromDate, toDate))
+				.thenReturn(List.of(firstDay, thirdDay));
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, fromDate,
+				toDate);
+
+		assertEquals(3, result.size());
+		assertEquals(List.of(workingInterval(9, 12)), result.get(fromDate));
+		assertEquals(List.of(), result.get(fromDate.plusDays(1)));
+		assertEquals(List.of(workingInterval(14, 18)), result.get(toDate));
+
+		verifyNoInteractions(weeklyRepository);
+	}
+
+	@Test
+	void shouldIgnoreOverridesInFloatingMode() {
+		setMode(ScheduleMode.FLOATING);
+
+		DateSchedule override = dateSchedule(DateSchedulePurpose.OVERRIDE, 10, 16);
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, DATE))
+				.thenReturn(List.of(override));
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE, DATE);
+
+		assertEquals(Map.of(DATE, List.of()), result);
+		verifyNoInteractions(weeklyRepository);
+	}
+
+	@Test
+	void shouldReturnEmptyIntervalsForFloatingRangeWithoutSchedules() {
+		setMode(ScheduleMode.FLOATING);
+
+		LocalDate toDate = DATE.plusDays(2);
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, toDate)).thenReturn(List.of());
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE,
+				toDate);
+
+		assertEquals(3, result.size());
+
+		for (LocalDate date = DATE; !date.isAfter(toDate); date = date.plusDays(1)) {
+			assertEquals(List.of(), result.get(date));
+		}
+	}
+
+	@Test
+	void shouldReturnWeeklyIntervalsForRegularDateRange() {
+		setMode(ScheduleMode.REGULAR);
+
+		LocalDate toDate = DATE.plusDays(2);
+		WeeklyScheduleVersion version = weeklyVersion();
+
+		version.addInterval(new WeeklyWorkingInterval(DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(12, 0)));
+
+		version.addInterval(new WeeklyWorkingInterval(DayOfWeek.THURSDAY, LocalTime.of(14, 0), LocalTime.of(18, 0)));
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, DATE, toDate)).thenReturn(List.of(version));
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, toDate)).thenReturn(List.of());
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE,
+				toDate);
+
+		assertEquals(3, result.size());
+		assertEquals(List.of(workingInterval(9, 12)), result.get(DATE));
+		assertEquals(List.of(), result.get(DATE.plusDays(1)));
+		assertEquals(List.of(workingInterval(14, 18)), result.get(toDate));
+	}
+
+	@Test
+	void shouldSwitchWeeklyVersionWithinDateRange() {
+		setMode(ScheduleMode.REGULAR);
+
+		LocalDate fromDate = DATE;
+		LocalDate toDate = DATE.plusDays(7);
+
+		WeeklyScheduleVersion oldVersion = new WeeklyScheduleVersion(specialist, DATE.minusDays(7), DATE.plusDays(6),
+				NOW);
+
+		oldVersion.addInterval(new WeeklyWorkingInterval(DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(12, 0)));
+
+		WeeklyScheduleVersion newVersion = new WeeklyScheduleVersion(specialist, DATE.plusDays(7), null, NOW);
+
+		newVersion.addInterval(new WeeklyWorkingInterval(DayOfWeek.TUESDAY, LocalTime.of(14, 0), LocalTime.of(18, 0)));
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, fromDate, toDate))
+				.thenReturn(List.of(oldVersion, newVersion));
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, fromDate, toDate))
+				.thenReturn(List.of());
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, fromDate,
+				toDate);
+
+		assertEquals(8, result.size());
+
+		assertEquals(List.of(workingInterval(9, 12)), result.get(DATE));
+
+		assertEquals(List.of(workingInterval(14, 18)), result.get(DATE.plusDays(7)));
+	}
+
+	@Test
+	void shouldReplaceWeeklyIntervalsWithOverrideInRange() {
+		setMode(ScheduleMode.REGULAR);
+
+		WeeklyScheduleVersion version = weeklyVersion();
+
+		version.addInterval(new WeeklyWorkingInterval(DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(17, 0)));
+
+		DateSchedule override = dateSchedule(DateSchedulePurpose.OVERRIDE, 14, 18);
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, DATE, DATE)).thenReturn(List.of(version));
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, DATE))
+				.thenReturn(List.of(override));
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE, DATE);
+
+		assertEquals(List.of(workingInterval(14, 18)), result.get(DATE));
+	}
+
+	@Test
+	void shouldCloseDayWithEmptyOverrideInRange() {
+		setMode(ScheduleMode.REGULAR);
+
+		WeeklyScheduleVersion version = weeklyVersion();
+
+		version.addInterval(new WeeklyWorkingInterval(DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(17, 0)));
+
+		DateSchedule emptyOverride = new DateSchedule(specialist, DATE, DateSchedulePurpose.OVERRIDE, NOW);
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, DATE, DATE)).thenReturn(List.of(version));
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, DATE))
+				.thenReturn(List.of(emptyOverride));
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE, DATE);
+
+		assertEquals(Map.of(DATE, List.of()), result);
+	}
+
+	@Test
+	void shouldReturnEmptyDaysWithoutWeeklyVersions() {
+		setMode(ScheduleMode.REGULAR);
+
+		LocalDate toDate = DATE.plusDays(2);
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, DATE, toDate)).thenReturn(List.of());
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, toDate)).thenReturn(List.of());
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE,
+				toDate);
+
+		assertEquals(3, result.size());
+
+		for (LocalDate date = DATE; !date.isAfter(toDate); date = date.plusDays(1)) {
+			assertEquals(List.of(), result.get(date));
+		}
+	}
+
+	@Test
+	void shouldApplyOverrideWithoutWeeklyVersion() {
+		setMode(ScheduleMode.REGULAR);
+
+		DateSchedule override = dateSchedule(DateSchedulePurpose.OVERRIDE, 12, 16);
+
+		when(weeklyRepository.findOverlappingPeriod(SPECIALIST_ID, DATE, DATE)).thenReturn(List.of());
+
+		when(dateScheduleRepository.findBySpecialistAndDateRange(SPECIALIST_ID, DATE, DATE))
+				.thenReturn(List.of(override));
+
+		Map<LocalDate, List<WorkingInterval>> result = service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE, DATE);
+
+		assertEquals(List.of(workingInterval(12, 16)), result.get(DATE));
+	}
+
+	@Test
+	void shouldRejectInvalidDateRangeArguments() {
+		assertThrows(IllegalArgumentException.class,
+				() -> service.getEffectiveWorkingIntervals(null, DATE, DATE.plusDays(1)));
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.getEffectiveWorkingIntervals(SPECIALIST_ID, null, DATE));
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE, null));
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.getEffectiveWorkingIntervals(SPECIALIST_ID, DATE.plusDays(1), DATE));
+
+		verifyNoInteractions(settingsRepository, dateScheduleRepository, weeklyRepository);
+	}
+
 }

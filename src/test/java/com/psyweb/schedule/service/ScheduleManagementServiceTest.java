@@ -9,6 +9,7 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -23,9 +24,11 @@ import com.psyweb.schedule.domain.DateSchedule;
 import com.psyweb.schedule.domain.DateSchedulePurpose;
 import com.psyweb.schedule.domain.ScheduleMode;
 import com.psyweb.schedule.domain.SpecialistScheduleSettings;
+import com.psyweb.schedule.domain.SpecialistTimeZoneGuard;
 import com.psyweb.schedule.domain.WeeklyScheduleVersion;
 import com.psyweb.schedule.repository.DateScheduleRepository;
 import com.psyweb.schedule.repository.SpecialistScheduleSettingsRepository;
+import com.psyweb.schedule.repository.SpecialistTimeZoneGuardRepository;
 import com.psyweb.schedule.repository.WeeklyScheduleVersionRepository;
 import com.psyweb.schedule.service.model.CreateWeeklyScheduleVersionCommand;
 import com.psyweb.schedule.service.model.WeeklyWorkingIntervalCommand;
@@ -50,6 +53,9 @@ class ScheduleManagementServiceTest {
 	private DateScheduleRepository dateRepository;
 
 	@Mock
+	private SpecialistTimeZoneGuardRepository guardRepository;
+
+	@Mock
 	private SpecialistService specialistService;
 
 	@Mock
@@ -57,15 +63,22 @@ class ScheduleManagementServiceTest {
 
 	private ScheduleManagementService service;
 	private SpecialistScheduleSettings settings;
+	private SpecialistTimeZoneGuard guard;
 
 	@BeforeEach
 	void setUp() {
-		Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-
-		service = new ScheduleManagementService(settingsRepository, weeklyRepository, dateRepository, clock,
-				specialistService);
+		service = createService(Clock.fixed(NOW, ZoneOffset.UTC));
 
 		settings = new SpecialistScheduleSettings(specialist, NOW.minusSeconds(3600));
+
+		guard = new SpecialistTimeZoneGuard(specialist, ZoneOffset.UTC, NOW.minusSeconds(3600));
+
+		lenient().when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.of(guard));
+	}
+
+	private ScheduleManagementService createService(Clock clock) {
+		return new ScheduleManagementService(settingsRepository, weeklyRepository, dateRepository, clock,
+				specialistService, guardRepository);
 	}
 
 	private void stubSettings() {
@@ -85,6 +98,14 @@ class ScheduleManagementServiceTest {
 		return List.of(new WorkingInterval(LocalTime.of(10, 0), LocalTime.of(12, 0)));
 	}
 
+	private void setGuardZone(ZoneId zone) {
+		guard.changeTimeZone(zone, NOW);
+	}
+
+	// ---------------------------------------------------------
+	// CHANGE SCHEDULE MODE
+	// ---------------------------------------------------------
+
 	@Test
 	void changeScheduleMode_updatesModeAndTimestamp() {
 		stubSettings();
@@ -94,7 +115,11 @@ class ScheduleManagementServiceTest {
 		assertEquals(ScheduleMode.FLOATING, settings.getMode());
 		assertEquals(NOW, settings.getUpdatedAt());
 
-		verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
+		var order = inOrder(guardRepository, settingsRepository);
+
+		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+
+		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
 	}
 
 	@Test
@@ -115,7 +140,7 @@ class ScheduleManagementServiceTest {
 
 		assertThrows(IllegalArgumentException.class, () -> service.changeScheduleMode(SPECIALIST_ID, null));
 
-		verifyNoInteractions(settingsRepository);
+		verifyNoInteractions(guardRepository, settingsRepository);
 	}
 
 	@Test
@@ -126,6 +151,10 @@ class ScheduleManagementServiceTest {
 				() -> service.changeScheduleMode(SPECIALIST_ID, ScheduleMode.FLOATING));
 	}
 
+	// ---------------------------------------------------------
+	// CHANGE BOOKING HORIZON
+	// ---------------------------------------------------------
+
 	@Test
 	void changeBookingHorizon_updatesHorizonAndTimestamp() {
 		stubSettings();
@@ -134,6 +163,12 @@ class ScheduleManagementServiceTest {
 
 		assertEquals(60, settings.getBookingHorizonDays());
 		assertEquals(NOW, settings.getUpdatedAt());
+
+		var order = inOrder(guardRepository, settingsRepository);
+
+		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+
+		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
 	}
 
 	@Test
@@ -161,7 +196,7 @@ class ScheduleManagementServiceTest {
 	void changeBookingHorizon_rejectsNullSpecialistId() {
 		assertThrows(IllegalArgumentException.class, () -> service.changeBookingHorizon(null, 60));
 
-		verifyNoInteractions(settingsRepository);
+		verifyNoInteractions(guardRepository, settingsRepository);
 	}
 
 	@Test
@@ -170,6 +205,10 @@ class ScheduleManagementServiceTest {
 
 		assertThrows(IllegalStateException.class, () -> service.changeBookingHorizon(SPECIALIST_ID, 60));
 	}
+
+	// ---------------------------------------------------------
+	// CREATE WEEKLY SCHEDULE VERSION
+	// ---------------------------------------------------------
 
 	@Test
 	void createWeeklyScheduleVersion_createsVersionWithIntervals() {
@@ -223,6 +262,8 @@ class ScheduleManagementServiceTest {
 		assertThrows(IllegalArgumentException.class,
 				() -> service.createWeeklyScheduleVersion(SPECIALIST_ID, weeklyCommand(TODAY.minusDays(1))));
 
+		verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+
 		verifyNoInteractions(settingsRepository, weeklyRepository);
 	}
 
@@ -272,7 +313,7 @@ class ScheduleManagementServiceTest {
 
 		assertThrows(IllegalArgumentException.class, () -> service.createWeeklyScheduleVersion(SPECIALIST_ID, null));
 
-		verifyNoInteractions(settingsRepository);
+		verifyNoInteractions(guardRepository, settingsRepository);
 	}
 
 	@Test
@@ -284,6 +325,10 @@ class ScheduleManagementServiceTest {
 
 		verifyNoInteractions(weeklyRepository);
 	}
+
+	// ---------------------------------------------------------
+	// REPLACE DATE SCHEDULE
+	// ---------------------------------------------------------
 
 	@Test
 	void replaceDateSchedule_createsOverrideInRegularMode() {
@@ -419,6 +464,10 @@ class ScheduleManagementServiceTest {
 		verifyNoInteractions(dateRepository);
 	}
 
+	// ---------------------------------------------------------
+	// REMOVE DATE SCHEDULE
+	// ---------------------------------------------------------
+
 	@Test
 	void removeDateSchedule_deletesExistingRecord() {
 		stubSettings();
@@ -432,7 +481,9 @@ class ScheduleManagementServiceTest {
 
 		service.removeDateSchedule(SPECIALIST_ID, date, DateSchedulePurpose.OVERRIDE);
 
-		var order = inOrder(settingsRepository, dateRepository);
+		var order = inOrder(guardRepository, settingsRepository, dateRepository);
+
+		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
 
 		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
 
@@ -476,5 +527,196 @@ class ScheduleManagementServiceTest {
 		assertThrows(IllegalArgumentException.class, () -> service.removeDateSchedule(SPECIALIST_ID, TODAY, null));
 
 		verifyNoInteractions(settingsRepository, dateRepository);
+	}
+
+	// ---------------------------------------------------------
+	// TIME ZONE GUARD
+	// ---------------------------------------------------------
+
+	@Test
+	void changeScheduleMode_failsWhenTimeZoneGuardMissing() {
+		when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalStateException.class,
+				() -> service.changeScheduleMode(SPECIALIST_ID, ScheduleMode.FLOATING));
+
+		verifyNoInteractions(settingsRepository);
+	}
+
+	@Test
+	void changeBookingHorizon_failsWhenTimeZoneGuardMissing() {
+		when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalStateException.class, () -> service.changeBookingHorizon(SPECIALIST_ID, 60));
+
+		verifyNoInteractions(settingsRepository);
+	}
+
+	@Test
+	void createWeeklyScheduleVersion_failsWhenTimeZoneGuardMissing() {
+		when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalStateException.class,
+				() -> service.createWeeklyScheduleVersion(SPECIALIST_ID, weeklyCommand(TODAY)));
+
+		verifyNoInteractions(settingsRepository, weeklyRepository);
+	}
+
+	@Test
+	void replaceDateSchedule_failsWhenTimeZoneGuardMissing() {
+		when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalStateException.class,
+				() -> service.replaceDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE, dateIntervals()));
+
+		verifyNoInteractions(settingsRepository, dateRepository);
+	}
+
+	@Test
+	void removeDateSchedule_failsWhenTimeZoneGuardMissing() {
+		when(guardRepository.findForShareBySpecialistId(SPECIALIST_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalStateException.class,
+				() -> service.removeDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE));
+
+		verifyNoInteractions(settingsRepository, dateRepository);
+	}
+
+	// ---------------------------------------------------------
+	// LOCAL DATE IN SPECIALIST TIME ZONE
+	// ---------------------------------------------------------
+
+	@Test
+	void createWeeklyScheduleVersion_allowsLocalTodayWhenUtcIsTomorrow() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-06T00:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("America/Los_Angeles"));
+		service = createService(boundaryClock);
+
+		stubSettings();
+		stubEligibleSpecialist();
+
+		when(weeklyRepository.save(any(WeeklyScheduleVersion.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		WeeklyScheduleVersion result = service.createWeeklyScheduleVersion(SPECIALIST_ID, weeklyCommand(TODAY));
+
+		assertEquals(TODAY, result.getEffectiveFrom());
+
+		verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+	}
+
+	@Test
+	void createWeeklyScheduleVersion_rejectsLocalYesterdayWhenUtcIsToday() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-05T23:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("Asia/Tokyo"));
+		service = createService(boundaryClock);
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.createWeeklyScheduleVersion(SPECIALIST_ID, weeklyCommand(TODAY)));
+
+		verifyNoInteractions(settingsRepository, weeklyRepository);
+	}
+
+	@Test
+	void replaceDateSchedule_allowsLocalTodayWhenUtcIsTomorrow() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-06T00:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("America/Los_Angeles"));
+		service = createService(boundaryClock);
+
+		stubSettings();
+		stubEligibleSpecialist();
+
+		when(dateRepository.save(any(DateSchedule.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		DateSchedule result = service.replaceDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE,
+				dateIntervals());
+
+		assertEquals(TODAY, result.getScheduleDate());
+		assertEquals(1, result.getIntervals().size());
+	}
+
+	@Test
+	void replaceDateSchedule_rejectsLocalYesterdayWhenUtcIsToday() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-05T23:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("Asia/Tokyo"));
+		service = createService(boundaryClock);
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.replaceDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE, dateIntervals()));
+
+		verifyNoInteractions(settingsRepository, dateRepository);
+	}
+
+	@Test
+	void removeDateSchedule_allowsLocalTodayWhenUtcIsTomorrow() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-06T00:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("America/Los_Angeles"));
+		service = createService(boundaryClock);
+
+		stubSettings();
+
+		DateSchedule existing = new DateSchedule(specialist, TODAY, DateSchedulePurpose.OVERRIDE, NOW);
+
+		when(dateRepository.findBySpecialistAndDateAndPurpose(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE))
+				.thenReturn(Optional.of(existing));
+
+		service.removeDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE);
+
+		verify(dateRepository).delete(existing);
+	}
+
+	@Test
+	void removeDateSchedule_rejectsLocalYesterdayWhenUtcIsToday() {
+		Clock boundaryClock = Clock.fixed(Instant.parse("2026-11-05T23:30:00Z"), ZoneOffset.UTC);
+
+		setGuardZone(ZoneId.of("Asia/Tokyo"));
+		service = createService(boundaryClock);
+
+		assertThrows(IllegalArgumentException.class,
+				() -> service.removeDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE));
+
+		verifyNoInteractions(settingsRepository, dateRepository);
+	}
+
+	// ---------------------------------------------------------
+	// LOCK ACQUISITION ORDER
+	// ---------------------------------------------------------
+
+	@Test
+	void createWeeklyScheduleVersion_acquiresLocksInCorrectOrder() {
+		stubSettings();
+		stubEligibleSpecialist();
+
+		when(weeklyRepository.save(any(WeeklyScheduleVersion.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		service.createWeeklyScheduleVersion(SPECIALIST_ID, weeklyCommand(TODAY.plusDays(1)));
+
+		var order = inOrder(guardRepository, settingsRepository);
+
+		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+
+		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
+	}
+
+	@Test
+	void replaceDateSchedule_acquiresLocksInCorrectOrder() {
+		stubSettings();
+		stubEligibleSpecialist();
+
+		when(dateRepository.save(any(DateSchedule.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		service.replaceDateSchedule(SPECIALIST_ID, TODAY, DateSchedulePurpose.OVERRIDE, dateIntervals());
+
+		var order = inOrder(guardRepository, settingsRepository);
+
+		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
+
+		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
 	}
 }

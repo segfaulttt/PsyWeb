@@ -13,10 +13,12 @@ import com.psyweb.schedule.domain.DateScheduleInterval;
 import com.psyweb.schedule.domain.DateSchedulePurpose;
 import com.psyweb.schedule.domain.ScheduleMode;
 import com.psyweb.schedule.domain.SpecialistScheduleSettings;
+import com.psyweb.schedule.domain.SpecialistTimeZoneGuard;
 import com.psyweb.schedule.domain.WeeklyScheduleVersion;
 import com.psyweb.schedule.domain.WeeklyWorkingInterval;
 import com.psyweb.schedule.repository.DateScheduleRepository;
 import com.psyweb.schedule.repository.SpecialistScheduleSettingsRepository;
+import com.psyweb.schedule.repository.SpecialistTimeZoneGuardRepository;
 import com.psyweb.schedule.repository.WeeklyScheduleVersionRepository;
 import com.psyweb.schedule.service.model.CreateWeeklyScheduleVersionCommand;
 import com.psyweb.schedule.service.model.WeeklyWorkingIntervalCommand;
@@ -31,15 +33,18 @@ public class ScheduleManagementService {
 	private final SpecialistScheduleSettingsRepository specialistScheduleSettingsRepository;
 	private final WeeklyScheduleVersionRepository weeklyScheduleVersionRepository;
 	private final DateScheduleRepository dateScheduleRepository;
+	private final SpecialistTimeZoneGuardRepository specialistTimeZoneGuardRepository;
 	private final SpecialistService specialistService;
 	private final Clock clock;
 
 	public ScheduleManagementService(SpecialistScheduleSettingsRepository specialistScheduleSettingsRepository,
 			WeeklyScheduleVersionRepository weeklyScheduleVersionRepository,
-			DateScheduleRepository dateScheduleRepository, Clock clock, SpecialistService specialistService) {
+			DateScheduleRepository dateScheduleRepository, Clock clock, SpecialistService specialistService,
+			SpecialistTimeZoneGuardRepository specialistTimeZoneGuardRepository) {
 		this.specialistScheduleSettingsRepository = specialistScheduleSettingsRepository;
 		this.weeklyScheduleVersionRepository = weeklyScheduleVersionRepository;
 		this.dateScheduleRepository = dateScheduleRepository;
+		this.specialistTimeZoneGuardRepository = specialistTimeZoneGuardRepository;
 		this.specialistService = specialistService;
 		this.clock = clock;
 	}
@@ -52,6 +57,8 @@ public class ScheduleManagementService {
 		if (mode == null) {
 			throw new IllegalArgumentException("Mode cannot be null");
 		}
+		specialistTimeZoneGuardRepository.findForShareBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Time zone guard not found"));
 		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
 				.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));
@@ -63,6 +70,8 @@ public class ScheduleManagementService {
 		if (specialistId == null) {
 			throw new IllegalArgumentException("Specialist ID cannot be null");
 		}
+		specialistTimeZoneGuardRepository.findForShareBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Time zone guard not found"));
 		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
 				.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));
@@ -78,8 +87,13 @@ public class ScheduleManagementService {
 		if (command == null) {
 			throw new IllegalArgumentException("Command cannot be null");
 		}
-		if (command.effectiveFrom().isBefore(LocalDate.now(clock))) {
-			throw new IllegalArgumentException("Effective from cannot be before now");
+		SpecialistTimeZoneGuard guard = specialistTimeZoneGuardRepository.findForShareBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Time zone guard not found"));
+
+		LocalDate today = LocalDate.now(clock.withZone(guard.getTimeZone()));
+
+		if (command.effectiveFrom().isBefore(today)) {
+			throw new IllegalArgumentException("Effective from cannot be before today");
 		}
 		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
 				.findForUpdateBySpecialistId(specialistId)
@@ -113,14 +127,18 @@ public class ScheduleManagementService {
 		if (date == null) {
 			throw new IllegalArgumentException("Date cannot be null");
 		}
-		if (date.isBefore(LocalDate.now(clock))) {
-			throw new IllegalArgumentException("Date cannot be before now");
-		}
 		if (purpose == null) {
 			throw new IllegalArgumentException("Purpose cannot be null");
 		}
 		if (intervals == null) {
 			throw new IllegalArgumentException("Intervals cannot be null");
+		}
+		SpecialistTimeZoneGuard guard = specialistTimeZoneGuardRepository.findForShareBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Time zone guard not found"));
+		LocalDate today = LocalDate.now(clock.withZone(guard.getTimeZone()));
+
+		if (date.isBefore(today)) {
+		    throw new IllegalArgumentException("Date cannot be before today");
 		}
 		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
 				.findForUpdateBySpecialistId(specialistId)
@@ -156,11 +174,15 @@ public class ScheduleManagementService {
 		if (date == null) {
 			throw new IllegalArgumentException("Date cannot be null");
 		}
-		if (date.isBefore(LocalDate.now(clock))) {
-			throw new IllegalArgumentException("Date cannot be before now");
-		}
 		if (purpose == null) {
 			throw new IllegalArgumentException("Purpose cannot be null");
+		}
+		SpecialistTimeZoneGuard guard = specialistTimeZoneGuardRepository.findForShareBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Time zone guard not found"));
+		LocalDate today = LocalDate.now(clock.withZone(guard.getTimeZone()));
+
+		if (date.isBefore(today)) {
+		    throw new IllegalArgumentException("Date cannot be before today");
 		}
 		specialistScheduleSettingsRepository.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));

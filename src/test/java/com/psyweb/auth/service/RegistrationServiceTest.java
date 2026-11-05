@@ -27,243 +27,206 @@ import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.exception.UserEmailAlreadyExistsException;
 import com.psyweb.user.service.UserService;
+import java.time.ZoneId;
+import com.psyweb.schedule.service.ScheduleInitializationService;
 
 @ExtendWith(MockitoExtension.class)
 class RegistrationServiceTest {
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+	@Mock
+	private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private UserService userService;
+	@Mock
+	private UserService userService;
 
-    @Mock
-    private ClientService clientService;
+	@Mock
+	private ClientService clientService;
 
-    @Mock
-    private SpecialistService specialistService;
+	@Mock
+	private SpecialistService specialistService;
 
-    @Mock
-    private SpecialistDefaultsProperties specialistDefaults;
+	@Mock
+	private SpecialistDefaultsProperties specialistDefaults;
 
-    private RegistrationService registrationService;
+	@Mock
+	private ScheduleInitializationService scheduleInitializationService;
 
-    private static final String EMAIL = "testemail@example.com";
-    private static final String PASSWORD = "ValidPassword12345!";
-    private static final String HASH = "encoded-password-hash";
-    private static final String FIRST_NAME = "Anna";
-    private static final String LAST_NAME = "Smith";
+	private RegistrationService registrationService;
 
-    @BeforeEach
-    void setUp() {
-        registrationService = new RegistrationService(
-                passwordEncoder,
-                userService,
-                clientService,
-                specialistService,
-                specialistDefaults
-        );
-    }
+	private static final String EMAIL = "testemail@example.com";
+	private static final String PASSWORD = "ValidPassword12345!";
+	private static final String HASH = "encoded-password-hash";
+	private static final String FIRST_NAME = "Anna";
+	private static final String LAST_NAME = "Smith";
 
-    @Test
-    void shouldRegisterClientWithEncodedPassword() {
-        User user = new User(EMAIL, HASH, UserRole.CLIENT, UserStatus.ACTIVE);
-        Client client = new Client(user, FIRST_NAME, LAST_NAME);
+	@BeforeEach
+	void setUp() {
+		registrationService = new RegistrationService(passwordEncoder, userService, clientService, specialistService,
+				specialistDefaults, scheduleInitializationService);
+	}
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenReturn(user);
-        when(clientService.createClient(user, FIRST_NAME, LAST_NAME)).thenReturn(client);
+	@Test
+	void shouldRegisterClientWithEncodedPassword() {
+		User user = new User(EMAIL, HASH, UserRole.CLIENT, UserStatus.ACTIVE);
+		Client client = new Client(user, FIRST_NAME, LAST_NAME);
 
-        Client result = registrationService.registerClient(
-                EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-        );
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenReturn(user);
+		when(clientService.createClient(user, FIRST_NAME, LAST_NAME)).thenReturn(client);
 
-        assertSame(client, result);
-        verify(passwordEncoder).encode(PASSWORD);
-        verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
-        verify(clientService).createClient(user, FIRST_NAME, LAST_NAME);
-        verifyNoInteractions(specialistService);
-    }
+		Client result = registrationService.registerClient(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME);
 
-    @Test
-    void shouldRegisterSpecialistWithConfiguredNotices() {
-        User user = new User(
-                EMAIL, HASH, UserRole.SPECIALIST, UserStatus.ACTIVE
-        );
+		assertSame(client, result);
+		verify(passwordEncoder).encode(PASSWORD);
+		verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
+		verify(clientService).createClient(user, FIRST_NAME, LAST_NAME);
+		verifyNoInteractions(specialistService);
+	}
 
-        Duration bookingNotice = Duration.ofHours(2);
-        Duration cancellationNotice = Duration.ofHours(24);
+	@Test
+	void shouldRegisterSpecialistWithConfiguredNotices() {
+		User user = new User(EMAIL, HASH, UserRole.SPECIALIST, UserStatus.ACTIVE);
 
-        Specialist specialist = new Specialist(
-                user, FIRST_NAME, LAST_NAME,
-                bookingNotice, cancellationNotice
-        );
+		Duration bookingNotice = Duration.ofHours(2);
+		Duration cancellationNotice = Duration.ofHours(24);
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.SPECIALIST))
-                .thenReturn(user);
+		Specialist specialist = new Specialist(user, FIRST_NAME, LAST_NAME, bookingNotice, cancellationNotice);
 
-        when(specialistDefaults.minimumBookingNotice())
-                .thenReturn(bookingNotice);
-        when(specialistDefaults.clientCancellationNotice())
-                .thenReturn(cancellationNotice);
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.SPECIALIST)).thenReturn(user);
 
-        when(specialistService.createSpecialist(
-                user,
-                FIRST_NAME,
-                LAST_NAME,
-                bookingNotice,
-                cancellationNotice
-        )).thenReturn(specialist);
+		when(specialistDefaults.minimumBookingNotice()).thenReturn(bookingNotice);
+		when(specialistDefaults.clientCancellationNotice()).thenReturn(cancellationNotice);
 
-        Specialist result = registrationService.registerSpecialist(
-                EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-        );
+		when(specialistService.createSpecialist(user, FIRST_NAME, LAST_NAME, bookingNotice, cancellationNotice))
+				.thenReturn(specialist);
 
-        assertSame(specialist, result);
-        verify(userService).createUser(EMAIL, HASH, UserRole.SPECIALIST);
+		ZoneId zone = ZoneId.of("Europe/Amsterdam");
 
-        verify(specialistService).createSpecialist(
-                user,
-                FIRST_NAME,
-                LAST_NAME,
-                bookingNotice,
-                cancellationNotice
-        );
+		Specialist result = registrationService.registerSpecialist(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME, zone);
 
-        verifyNoInteractions(clientService);
-    }
+		assertSame(specialist, result);
 
-    @Test
-    void shouldNormalizeEmailBeforeCreatingUser() {
-        User user = new User(EMAIL, HASH, UserRole.CLIENT, UserStatus.ACTIVE);
-        Client client = new Client(user, FIRST_NAME, LAST_NAME);
+		verify(scheduleInitializationService).initialize(specialist, zone);
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenReturn(user);
-        when(clientService.createClient(user, FIRST_NAME, LAST_NAME)).thenReturn(client);
+		assertSame(specialist, result);
+		verify(userService).createUser(EMAIL, HASH, UserRole.SPECIALIST);
 
-        Client result = registrationService.registerClient(
-                "  TestEmail@Example.COM  ",
-                PASSWORD,
-                FIRST_NAME,
-                LAST_NAME
-        );
+		verify(specialistService).createSpecialist(user, FIRST_NAME, LAST_NAME, bookingNotice, cancellationNotice);
 
-        assertSame(client, result);
-        verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
-    }
+		verifyNoInteractions(clientService);
+	}
 
-    @Test
-    void shouldRejectInvalidPasswordWithoutCreatingAccount() {
-        assertThrows(
-                InvalidPasswordException.class,
-                () -> registrationService.registerClient(
-                        EMAIL, "short", FIRST_NAME, LAST_NAME
-                )
-        );
+	@Test
+	void shouldNormalizeEmailBeforeCreatingUser() {
+		User user = new User(EMAIL, HASH, UserRole.CLIENT, UserStatus.ACTIVE);
+		Client client = new Client(user, FIRST_NAME, LAST_NAME);
 
-        verifyNoInteractions(
-                passwordEncoder,
-                userService,
-                clientService,
-                specialistService
-        );
-    }
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenReturn(user);
+		when(clientService.createClient(user, FIRST_NAME, LAST_NAME)).thenReturn(client);
 
-    @Test
-    void shouldPropagateEmailAlreadyExistsException() {
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		Client result = registrationService.registerClient("  TestEmail@Example.COM  ", PASSWORD, FIRST_NAME,
+				LAST_NAME);
 
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT))
-                .thenThrow(new UserEmailAlreadyExistsException("Duplicate"));
+		assertSame(client, result);
+		verify(userService).createUser(EMAIL, HASH, UserRole.CLIENT);
+	}
 
-        assertThrows(
-                UserEmailAlreadyExistsException.class,
-                () -> registrationService.registerClient(
-                        EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-                )
-        );
+	@Test
+	void shouldRejectInvalidPasswordWithoutCreatingAccount() {
+		assertThrows(InvalidPasswordException.class,
+				() -> registrationService.registerClient(EMAIL, "short", FIRST_NAME, LAST_NAME));
 
-        verifyNoInteractions(clientService, specialistService);
-    }
+		verifyNoInteractions(passwordEncoder, userService, clientService, specialistService);
+	}
 
-    @Test
-    void shouldTranslateEmailUniqueConstraintViolation() {
-        DataIntegrityViolationException exception =
-                constraintFailure("23505", "users_email_key");
+	@Test
+	void shouldPropagateEmailAlreadyExistsException() {
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT))
-                .thenThrow(exception);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT))
+				.thenThrow(new UserEmailAlreadyExistsException("Duplicate"));
 
-        UserEmailAlreadyExistsException result = assertThrows(
-                UserEmailAlreadyExistsException.class,
-                () -> registrationService.registerClient(
-                        EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-                )
-        );
+		assertThrows(UserEmailAlreadyExistsException.class,
+				() -> registrationService.registerClient(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME));
 
-        assertSame(exception, result.getCause());
-        verifyNoInteractions(clientService);
-    }
+		verifyNoInteractions(clientService, specialistService);
+	}
 
-    @Test
-    void shouldPropagateUnrelatedDataIntegrityViolation() {
-        DataIntegrityViolationException exception =
-                constraintFailure(
-                        "23502", "users_password_hash_not_null"
-                );
+	@Test
+	void shouldTranslateEmailUniqueConstraintViolation() {
+		DataIntegrityViolationException exception = constraintFailure("23505", "users_email_key");
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT))
-                .thenThrow(exception);
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
 
-        DataIntegrityViolationException result = assertThrows(
-                DataIntegrityViolationException.class,
-                () -> registrationService.registerClient(
-                        EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-                )
-        );
+		UserEmailAlreadyExistsException result = assertThrows(UserEmailAlreadyExistsException.class,
+				() -> registrationService.registerClient(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME));
 
-        assertSame(exception, result);
-    }
+		assertSame(exception, result.getCause());
+		verifyNoInteractions(clientService);
+	}
 
-    @Test
-    void shouldNotTranslateWrongSqlStateForEmailConstraint() {
-        DataIntegrityViolationException exception =
-                constraintFailure("23514", "users_email_key");
+	@Test
+	void shouldPropagateUnrelatedDataIntegrityViolation() {
+		DataIntegrityViolationException exception = constraintFailure("23502", "users_password_hash_not_null");
 
-        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
-        when(userService.createUser(EMAIL, HASH, UserRole.CLIENT))
-                .thenThrow(exception);
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
 
-        DataIntegrityViolationException result = assertThrows(
-                DataIntegrityViolationException.class,
-                () -> registrationService.registerClient(
-                        EMAIL, PASSWORD, FIRST_NAME, LAST_NAME
-                )
-        );
+		DataIntegrityViolationException result = assertThrows(DataIntegrityViolationException.class,
+				() -> registrationService.registerClient(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME));
 
-        assertSame(exception, result);
-    }
+		assertSame(exception, result);
+	}
 
-    private static DataIntegrityViolationException constraintFailure(
-            String sqlState,
-            String constraintName
-    ) {
-        SQLException cause = new SQLException(
-                "Constraint violation", sqlState
-        );
+	@Test
+	void shouldNotTranslateWrongSqlStateForEmailConstraint() {
+		DataIntegrityViolationException exception = constraintFailure("23514", "users_email_key");
 
-        ConstraintViolationException hibernateException =
-                new ConstraintViolationException(
-                        "Constraint violation", cause, constraintName
-                );
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+		when(userService.createUser(EMAIL, HASH, UserRole.CLIENT)).thenThrow(exception);
 
-        return new DataIntegrityViolationException(
-                "Database constraint violation",
-                hibernateException
-        );
-    }
+		DataIntegrityViolationException result = assertThrows(DataIntegrityViolationException.class,
+				() -> registrationService.registerClient(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME));
+
+		assertSame(exception, result);
+	}
+
+	@Test
+	void shouldRejectNullSpecialistTimeZoneBeforeCreatingUser() {
+		assertThrows(IllegalArgumentException.class,
+				() -> registrationService.registerSpecialist(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME, null));
+
+		verifyNoInteractions(passwordEncoder, userService, specialistService, scheduleInitializationService);
+	}
+
+	@Test
+	void shouldNotInitializeScheduleWhenSpecialistCreationFails() {
+		ZoneId zone = ZoneId.of("Europe/Amsterdam");
+
+		User user = new User(EMAIL, HASH, UserRole.SPECIALIST, UserStatus.ACTIVE);
+
+		when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
+		when(userService.createUser(EMAIL, HASH, UserRole.SPECIALIST)).thenReturn(user);
+
+		when(specialistService.createSpecialist(any(), anyString(), anyString(), any(), any()))
+				.thenThrow(new IllegalStateException("Creation failed"));
+
+		assertThrows(IllegalStateException.class,
+				() -> registrationService.registerSpecialist(EMAIL, PASSWORD, FIRST_NAME, LAST_NAME, zone));
+
+		verifyNoInteractions(scheduleInitializationService);
+	}
+
+	private static DataIntegrityViolationException constraintFailure(String sqlState, String constraintName) {
+		SQLException cause = new SQLException("Constraint violation", sqlState);
+
+		ConstraintViolationException hibernateException = new ConstraintViolationException("Constraint violation",
+				cause, constraintName);
+
+		return new DataIntegrityViolationException("Database constraint violation", hibernateException);
+	}
 }

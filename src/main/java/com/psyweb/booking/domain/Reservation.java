@@ -122,6 +122,14 @@ public class Reservation {
 	public CancellationReason getCancellationReason() {
 		return this.reason;
 	}
+	
+	public Instant getStartTime() {
+	    return slot.getStartTime();
+	}
+
+	public Instant getEndTime() {
+	    return slot.getEndTime();
+	}
 
 	public void expire(Instant now) {
 		if (!isExpired(now)) {

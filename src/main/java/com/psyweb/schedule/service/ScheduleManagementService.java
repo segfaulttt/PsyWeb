@@ -78,8 +78,15 @@ public class ScheduleManagementService {
 		if (command == null) {
 			throw new IllegalArgumentException("Command cannot be null");
 		}
-		specialistScheduleSettingsRepository.findForUpdateBySpecialistId(specialistId)
+		if (command.effectiveFrom().isBefore(LocalDate.now(clock))) {
+			throw new IllegalArgumentException("Effective from cannot be before now");
+		}
+		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
+				.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist schedule settings not found"));
+		if (specialistSettings.getMode() == ScheduleMode.FLOATING) {
+			throw new IllegalStateException("Weekly schedule versions are only allowed in REGULAR mode");
+		}
 		if (weeklyScheduleVersionRepository.existsVersionStartingOnOrAfter(specialistId, command.effectiveFrom())) {
 			throw new IllegalStateException("A weekly schedule version already starts on or after the requested date");
 		}
@@ -106,6 +113,9 @@ public class ScheduleManagementService {
 		if (date == null) {
 			throw new IllegalArgumentException("Date cannot be null");
 		}
+		if (date.isBefore(LocalDate.now(clock))) {
+			throw new IllegalArgumentException("Date cannot be before now");
+		}
 		if (purpose == null) {
 			throw new IllegalArgumentException("Purpose cannot be null");
 		}
@@ -116,10 +126,12 @@ public class ScheduleManagementService {
 				.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));
 		if (specialistSettings.getMode() == ScheduleMode.REGULAR && purpose == DateSchedulePurpose.MANUAL) {
-			throw new IllegalArgumentException("Incorrect combination");
+			throw new IllegalArgumentException(
+					"Incorrect combination: " + specialistSettings.getMode() + " and " + purpose);
 		}
 		if (specialistSettings.getMode() == ScheduleMode.FLOATING && purpose == DateSchedulePurpose.OVERRIDE) {
-			throw new IllegalArgumentException("Incorrect combination");
+			throw new IllegalArgumentException(
+					"Incorrect combination: " + specialistSettings.getMode() + " and " + purpose);
 		}
 		Optional<DateSchedule> optionalDateSchedule = dateScheduleRepository
 				.findBySpecialistAndDateAndPurpose(specialistId, date, purpose);
@@ -144,9 +156,14 @@ public class ScheduleManagementService {
 		if (date == null) {
 			throw new IllegalArgumentException("Date cannot be null");
 		}
+		if (date.isBefore(LocalDate.now(clock))) {
+			throw new IllegalArgumentException("Date cannot be before now");
+		}
 		if (purpose == null) {
 			throw new IllegalArgumentException("Purpose cannot be null");
 		}
+		specialistScheduleSettingsRepository.findForUpdateBySpecialistId(specialistId)
+				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));
 		DateSchedule dateSchedule = dateScheduleRepository
 				.findBySpecialistAndDateAndPurpose(specialistId, date, purpose)
 				.orElseThrow(() -> new IllegalStateException("Date schedule not found"));

@@ -105,7 +105,8 @@ public class ScheduleManagementService {
 			throw new IllegalStateException("A weekly schedule version already starts on or after the requested date");
 		}
 		Specialist spec = specialistService.getEligibleSpecialist(specialistId);
-		WeeklyScheduleVersion version = new WeeklyScheduleVersion(spec, command.effectiveFrom(), Instant.now(clock));
+		WeeklyScheduleVersion version = new WeeklyScheduleVersion(spec, command.effectiveFrom(),
+				command.effectiveUntil(), Instant.now(clock));
 		for (WeeklyWorkingIntervalCommand w : command.intervals()) {
 			version.addInterval(new WeeklyWorkingInterval(w.dayOfWeek(), w.startTime(), w.endTime()));
 		}
@@ -138,7 +139,7 @@ public class ScheduleManagementService {
 		LocalDate today = LocalDate.now(clock.withZone(guard.getTimeZone()));
 
 		if (date.isBefore(today)) {
-		    throw new IllegalArgumentException("Date cannot be before today");
+			throw new IllegalArgumentException("Date cannot be before today");
 		}
 		SpecialistScheduleSettings specialistSettings = specialistScheduleSettingsRepository
 				.findForUpdateBySpecialistId(specialistId)
@@ -182,7 +183,7 @@ public class ScheduleManagementService {
 		LocalDate today = LocalDate.now(clock.withZone(guard.getTimeZone()));
 
 		if (date.isBefore(today)) {
-		    throw new IllegalArgumentException("Date cannot be before today");
+			throw new IllegalArgumentException("Date cannot be before today");
 		}
 		specialistScheduleSettingsRepository.findForUpdateBySpecialistId(specialistId)
 				.orElseThrow(() -> new IllegalStateException("Specialist settings not found"));

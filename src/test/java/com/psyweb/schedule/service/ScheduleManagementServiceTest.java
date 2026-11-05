@@ -237,6 +237,28 @@ class ScheduleManagementServiceTest {
 	}
 
 	@Test
+	void createWeeklyScheduleVersion_createsVersionWithEffectiveUntil() {
+		stubSettings();
+		stubEligibleSpecialist();
+
+		LocalDate startDate = TODAY.plusDays(7);
+		LocalDate endDate = TODAY.plusDays(21);
+
+		CreateWeeklyScheduleVersionCommand command = new CreateWeeklyScheduleVersionCommand(startDate, endDate,
+				List.of());
+
+		when(weeklyRepository.save(any(WeeklyScheduleVersion.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		WeeklyScheduleVersion result = service.createWeeklyScheduleVersion(SPECIALIST_ID, command);
+
+		assertEquals(startDate, result.getEffectiveFrom());
+		assertEquals(endDate, result.getEffectiveUntil());
+
+		verify(weeklyRepository).save(result);
+	}
+
+	@Test
 	void createWeeklyScheduleVersion_shortensPreviousVersion() {
 		stubSettings();
 		stubEligibleSpecialist();
@@ -718,5 +740,33 @@ class ScheduleManagementServiceTest {
 		order.verify(guardRepository).findForShareBySpecialistId(SPECIALIST_ID);
 
 		order.verify(settingsRepository).findForUpdateBySpecialistId(SPECIALIST_ID);
+	}
+
+	@Test
+	void createWeeklyScheduleVersionCommand_acceptsFinitePeriod() {
+		LocalDate from = LocalDate.of(2026, 12, 1);
+		LocalDate until = LocalDate.of(2026, 12, 20);
+
+		CreateWeeklyScheduleVersionCommand command = new CreateWeeklyScheduleVersionCommand(from, until, List.of());
+
+		assertEquals(from, command.effectiveFrom());
+		assertEquals(until, command.effectiveUntil());
+	}
+
+	@Test
+	void createWeeklyScheduleVersionCommand_acceptsOpenEndedPeriod() {
+		LocalDate from = LocalDate.of(2026, 12, 1);
+
+		CreateWeeklyScheduleVersionCommand command = new CreateWeeklyScheduleVersionCommand(from, List.of());
+
+		assertEquals(from, command.effectiveFrom());
+		assertNull(command.effectiveUntil());
+	}
+
+	@Test
+	void createWeeklyScheduleVersionCommand_rejectsInvalidPeriod() {
+		assertThrows(IllegalArgumentException.class,
+				() -> new CreateWeeklyScheduleVersionCommand(LocalDate.of(2026, 12, 20), LocalDate.of(2026, 12, 1),
+						List.of()));
 	}
 }

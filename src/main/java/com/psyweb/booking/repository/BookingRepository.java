@@ -1,5 +1,6 @@
 package com.psyweb.booking.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,4 +36,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long>{
 	
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<Booking> findForUpdateById(Long bookingId);
+	
+	@Query("""
+		    SELECT b
+		    FROM Booking b
+		    WHERE b.specialist.id = :specialistId
+		      AND b.status = com.psyweb.booking.domain.BookingStatus.CONFIRMED
+		      AND b.slot.startTime > :now
+		    """)
+		List<Booking> findFutureConfirmedBookingsBySpecialistId(
+		        @Param("specialistId") Long specialistId,
+		        @Param("now") Instant now
+		);
 }

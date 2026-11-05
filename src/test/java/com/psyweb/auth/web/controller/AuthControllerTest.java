@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.Clock;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,7 +93,7 @@ class AuthControllerTest {
 		Specialist specialist = mock(Specialist.class);
 		when(specialist.getId()).thenReturn(20L);
 
-		when(registrationService.registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones"))
+		when(registrationService.registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones", ZoneId.of("Europe/Amsterdam")))
 				.thenReturn(specialist);
 
 		String json = """
@@ -100,7 +101,8 @@ class AuthControllerTest {
 				  "email": "kate@example.com",
 				  "password": "StrongPassword123!",
 				  "firstName": "Kate",
-				  "lastName": "Jones"
+				  "lastName": "Jones",
+				  "timeZone": "Europe/Amsterdam"
 				}
 				""";
 
@@ -110,7 +112,7 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.passwordHash").doesNotExist())
 				.andExpect(jsonPath("$.approvalStatus").doesNotExist());
 
-		verify(registrationService).registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones");
+		verify(registrationService).registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones", ZoneId.of("Europe/Amsterdam"));
 	}
 
 	@Test
@@ -231,5 +233,23 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.approvalStatus").doesNotExist());
 
 		verify(registrationService).registerClient("anna@example.com", "StrongPassword123!", "Anna", "Smith");
+	}
+
+	@Test
+	void shouldReturn400WhenSpecialistTimeZoneMissing() throws Exception {
+		String json = """
+				{
+				  "email": "kate@example.com",
+				  "password": "StrongPassword123!",
+				  "firstName": "Kate",
+				  "lastName": "Jones"
+				}
+				""";
+
+		mockMvc.perform(post(SPECIALIST_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.timeZone").isArray());
+
+		verifyNoInteractions(registrationService);
 	}
 }

@@ -4,6 +4,7 @@ package com.psyweb.auth.web.controller;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.util.UUID;
 
@@ -64,7 +65,7 @@ class AuthRegistrationIntegrationTest
                 """.formatted(email, password);
 
         MvcResult result = mockMvc.perform(
-                        post("/api/auth/register/client")
+                        post("/api/auth/register/client").with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestJson)
                 )

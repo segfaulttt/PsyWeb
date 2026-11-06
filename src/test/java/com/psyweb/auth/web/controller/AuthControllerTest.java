@@ -21,8 +21,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import com.psyweb.auth.authorization.CurrentActorProvider;
 import com.psyweb.auth.exception.InvalidPasswordException;
+import com.psyweb.auth.service.AuthService;
 import com.psyweb.auth.service.RegistrationService;
+import com.psyweb.auth.web.cookie.RefreshCookieFactory;
+import com.psyweb.auth.web.mapper.AuthWebMapper;
 import com.psyweb.auth.web.mapper.RegistrationWebMapper;
 import com.psyweb.client.domain.Client;
 import com.psyweb.common.web.exception.GlobalExceptionHandler;
@@ -38,6 +42,18 @@ class AuthControllerTest {
 
 	@Mock
 	private RegistrationService registrationService;
+	
+	@Mock
+	private AuthService authService; 
+	
+	@Mock
+	private AuthWebMapper authWebMapper;
+	
+	@Mock
+	private RefreshCookieFactory cookieFactory;
+	
+	@Mock
+	private CurrentActorProvider currentActorProvider;
 
 	private MockMvc mockMvc;
 
@@ -47,7 +63,7 @@ class AuthControllerTest {
 	void setUp() {
 		RegistrationWebMapper mapper = new RegistrationWebMapper();
 
-		AuthController controller = new AuthController(registrationService, mapper);
+		AuthController controller = new AuthController(registrationService, mapper, authService, authWebMapper, cookieFactory, currentActorProvider);
 
 		validator = new LocalValidatorFactoryBean();
 		validator.afterPropertiesSet();

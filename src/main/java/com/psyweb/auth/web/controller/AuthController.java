@@ -41,7 +41,7 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public RegistrationResponse registerSpecialist(@Valid @RequestBody SpecialistRegistrationRequest request) {
 		Specialist specialist = registrationService.registerSpecialist(request.email(), request.password(),
-				request.firstName(), request.lastName());
+				request.firstName(), request.lastName(), request.timeZone());
 		return registrationWebMapper.toResponse(specialist);
 	}
 }

@@ -3,6 +3,8 @@ package com.psyweb.auth.web.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.ZoneId;
+import jakarta.validation.constraints.NotNull;
 
 public record SpecialistRegistrationRequest (
 		@NotBlank
@@ -18,6 +20,8 @@ public record SpecialistRegistrationRequest (
 		
 		@NotBlank
 		@Size(min = 2, max = 100, message = "Last name must be between 2 and 100 characters long")
-		String lastName) {
+		String lastName,
 
+		@NotNull
+		ZoneId timeZone) {
 }

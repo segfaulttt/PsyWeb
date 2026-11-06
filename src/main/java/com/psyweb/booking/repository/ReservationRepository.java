@@ -58,4 +58,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>{
 	
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<Reservation> findForUpdateById(Long reservationId);
+	
+	@Query("""
+		    SELECT r
+		    FROM Reservation r
+		    WHERE r.slot.specialist.id = :specialistId
+		      AND r.status = com.psyweb.booking.domain.ReservationStatus.ACTIVE
+		      AND r.expiresAt > :now
+		      AND r.slot.startTime > :now
+		    """)
+		List<Reservation> findActiveFutureReservationsBySpecialistId(
+		        @Param("specialistId") Long specialistId,
+		        @Param("now") Instant now
+		);
 }

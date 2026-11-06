@@ -3,6 +3,7 @@ package com.psyweb.auth.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.ZoneId;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +20,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.psyweb.client.domain.Client;
 import com.psyweb.client.repository.ClientRepository;
+import com.psyweb.schedule.domain.ScheduleMode;
+import com.psyweb.schedule.repository.SpecialistScheduleSettingsRepository;
+import com.psyweb.schedule.repository.SpecialistTimeZoneGuardRepository;
 import com.psyweb.specialist.domain.Specialist;
 import com.psyweb.specialist.domain.SpecialistStatus;
 import com.psyweb.specialist.repository.SpecialistRepository;
@@ -33,243 +37,198 @@ import jakarta.persistence.EntityManager;
 
 class RegistrationIntegrationTest extends PostgreSQLIntegrationTest {
 
-    @Autowired
-    private RegistrationService registrationService;
+	@Autowired
+	private RegistrationService registrationService;
 
-    @Autowired
-    private UserRepository userRepository;
+	@Autowired
+	private UserRepository userRepository;
 
-    @Autowired
-    private ClientRepository clientRepository;
+	@Autowired
+	private ClientRepository clientRepository;
 
-    @Autowired
-    private SpecialistRepository specialistRepository;
+	@Autowired
+	private SpecialistRepository specialistRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private EntityManager entityManager;
+	@Autowired
+	private EntityManager entityManager;
 
-    @Autowired
-    private PlatformTransactionManager transactionManager;
+	@Autowired
+	private PlatformTransactionManager transactionManager;
 
-    private String uniqueEmail() {
-        return "registration-" + UUID.randomUUID() + "@example.com";
-    }
+	@Autowired
+	private SpecialistScheduleSettingsRepository settingsRepository;
 
-    @Test
-    void shouldPersistClientRegistrationWithArgon2PasswordHash() {
-        String email = uniqueEmail();
-        String password = "VeryStrongPassword123!";
+	@Autowired
+	private SpecialistTimeZoneGuardRepository guardRepository;
 
-        Client client = registrationService.registerClient(
-                email, password, "Anna", "Smith"
-        );
+	private String uniqueEmail() {
+		return "registration-" + UUID.randomUUID() + "@example.com";
+	}
 
-        assertNotNull(client.getId());
+	@Test
+	void shouldPersistClientRegistrationWithArgon2PasswordHash() {
+		String email = uniqueEmail();
+		String password = "VeryStrongPassword123!";
 
-        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            entityManager.clear();
+		Client client = registrationService.registerClient(email, password, "Anna", "Smith");
 
-            User user = userRepository.findById(client.getId()).orElseThrow();
-            Client persisted = clientRepository.findById(client.getId()).orElseThrow();
+		assertNotNull(client.getId());
 
-            assertEquals(email, user.getEmail());
-            assertEquals(UserRole.CLIENT, user.getRole());
-            assertEquals(UserStatus.ACTIVE, user.getStatus());
-            assertNull(user.getEmailVerifiedAt());
+		new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+			entityManager.clear();
 
-            assertEquals("Anna", persisted.getFirstName());
-            assertEquals("Smith", persisted.getLastName());
+			User user = userRepository.findById(client.getId()).orElseThrow();
+			Client persisted = clientRepository.findById(client.getId()).orElseThrow();
 
-            assertTrue(user.getPasswordHash().startsWith("$argon2id$"));
-            assertTrue(passwordEncoder.matches(password, user.getPasswordHash()));
-            assertFalse(passwordEncoder.matches(
-                    "WrongPassword123!", user.getPasswordHash()
-            ));
+			assertEquals(email, user.getEmail());
+			assertEquals(UserRole.CLIENT, user.getRole());
+			assertEquals(UserStatus.ACTIVE, user.getStatus());
+			assertNull(user.getEmailVerifiedAt());
 
-            assertFalse(specialistRepository.existsById(user.getId()));
-        });
-    }
+			assertEquals("Anna", persisted.getFirstName());
+			assertEquals("Smith", persisted.getLastName());
 
-    @Test
-    void shouldPersistSpecialistRegistrationWithPendingStatus() {
-        String email = uniqueEmail();
+			assertTrue(user.getPasswordHash().startsWith("$argon2id$"));
+			assertTrue(passwordEncoder.matches(password, user.getPasswordHash()));
+			assertFalse(passwordEncoder.matches("WrongPassword123!", user.getPasswordHash()));
 
-        Specialist specialist = registrationService.registerSpecialist(
-                email,
-                "VeryStrongPassword123!",
-                "Kate",
-                "Jones"
-        );
+			assertFalse(specialistRepository.existsById(user.getId()));
+		});
+	}
 
-        assertNotNull(specialist.getId());
+	@Test
+	void shouldPersistSpecialistRegistrationWithPendingStatus() {
+		String email = uniqueEmail();
 
-        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            entityManager.clear();
+		Specialist specialist = registrationService.registerSpecialist(email, "VeryStrongPassword123!", "Kate", "Jones",
+				ZoneId.of("Europe/Amsterdam"));
 
-            User user = userRepository.findById(specialist.getId()).orElseThrow();
-            Specialist persisted =
-                    specialistRepository.findById(specialist.getId()).orElseThrow();
+		var settings = settingsRepository.findById(specialist.getId()).orElseThrow();
 
-            assertEquals(UserRole.SPECIALIST, user.getRole());
-            assertEquals(UserStatus.ACTIVE, user.getStatus());
+		var guard = guardRepository.findById(specialist.getId()).orElseThrow();
 
-            assertEquals(
-                    SpecialistStatus.PENDING,
-                    persisted.getApprovalStatus()
-            );
+		assertEquals(ScheduleMode.REGULAR, settings.getMode());
+		assertEquals(30, settings.getBookingHorizonDays());
 
-            assertEquals("Kate", persisted.getFirstName());
-            assertEquals("Jones", persisted.getLastName());
+		assertEquals(ZoneId.of("Europe/Amsterdam"), guard.getTimeZone());
 
-            assertNotNull(persisted.getMinimumBookingNotice());
-            assertNotNull(persisted.getClientCancellationNotice());
+		assertNotNull(specialist.getId());
 
-            assertFalse(clientRepository.existsById(user.getId()));
-        });
-    }
+		new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+			entityManager.clear();
 
-    @Test
-    void shouldRollbackUserWhenClientProfileValidationFails() {
-        String email = uniqueEmail();
+			User user = userRepository.findById(specialist.getId()).orElseThrow();
+			Specialist persisted = specialistRepository.findById(specialist.getId()).orElseThrow();
 
-        assertThrows(
-                RuntimeException.class,
-                () -> registrationService.registerClient(
-                        email, "ValidPassword123!", " ", "Smith"
-                )
-        );
+			assertEquals(UserRole.SPECIALIST, user.getRole());
+			assertEquals(UserStatus.ACTIVE, user.getStatus());
 
-        assertTrue(
-                userRepository.findByEmail(email).isEmpty(),
-                "User must not persist when Client creation fails"
-        );
-    }
+			assertEquals(SpecialistStatus.PENDING, persisted.getApprovalStatus());
 
-    @Test
-    void shouldRollbackUserWhenSpecialistProfileValidationFails() {
-        String email = uniqueEmail();
+			assertEquals("Kate", persisted.getFirstName());
+			assertEquals("Jones", persisted.getLastName());
 
-        assertThrows(
-                RuntimeException.class,
-                () -> registrationService.registerSpecialist(
-                        email, "ValidPassword123!", " ", "Smith"
-                )
-        );
+			assertNotNull(persisted.getMinimumBookingNotice());
+			assertNotNull(persisted.getClientCancellationNotice());
 
-        assertTrue(
-                userRepository.findByEmail(email).isEmpty(),
-                "User must not persist when Specialist creation fails"
-        );
-    }
+			assertFalse(clientRepository.existsById(user.getId()));
+		});
+	}
 
-    @Test
-    void shouldRejectDuplicateEmailAcrossAccountTypes() {
-        String email = uniqueEmail();
+	@Test
+	void shouldRollbackUserWhenClientProfileValidationFails() {
+		String email = uniqueEmail();
 
-        Client client = registrationService.registerClient(
-                email, "ValidPassword123!", "Anna", "Smith"
-        );
+		assertThrows(RuntimeException.class,
+				() -> registrationService.registerClient(email, "ValidPassword123!", " ", "Smith"));
 
-        assertThrows(
-                UserEmailAlreadyExistsException.class,
-                () -> registrationService.registerSpecialist(
-                        email, "ValidPassword123!", "Kate", "Jones"
-                )
-        );
+		assertTrue(userRepository.findByEmail(email).isEmpty(), "User must not persist when Client creation fails");
+	}
 
-        assertNotNull(client.getId());
+	@Test
+	void shouldRollbackUserWhenSpecialistProfileValidationFails() {
+		String email = uniqueEmail();
 
-        assertEquals(
-                client.getId(),
-                userRepository.findByEmail(email).orElseThrow().getId()
-        );
+		assertThrows(RuntimeException.class, () -> registrationService.registerSpecialist(email, "ValidPassword123!",
+				" ", "Smith", ZoneId.of("Europe/Amsterdam")));
 
-        assertTrue(clientRepository.existsById(client.getId()));
-        assertFalse(specialistRepository.existsById(client.getId()));
-    }
+		assertTrue(userRepository.findByEmail(email).isEmpty(), "User must not persist when Specialist creation fails");
+	}
 
-    @Test
-    void shouldRejectDuplicateEmailInDatabase() {
-        String email = uniqueEmail();
+	@Test
+	void shouldRejectDuplicateEmailAcrossAccountTypes() {
+		String email = uniqueEmail();
 
-        userRepository.saveAndFlush(
-                new User(
-                        email, "hash-1",
-                        UserRole.CLIENT, UserStatus.ACTIVE
-                )
-        );
+		Client client = registrationService.registerClient(email, "ValidPassword123!", "Anna", "Smith");
 
-        assertThrows(
-                DataIntegrityViolationException.class,
-                () -> userRepository.saveAndFlush(
-                        new User(
-                                email, "hash-2",
-                                UserRole.CLIENT, UserStatus.ACTIVE
-                        )
-                )
-        );
-    }
+		assertThrows(UserEmailAlreadyExistsException.class, () -> registrationService.registerSpecialist(email,
+				"ValidPassword123!", "Kate", "Jones", ZoneId.of("Europe/Amsterdam")));
 
-    @Test
-    void shouldAllowOnlyOneConcurrentRegistrationForSameEmail() throws Exception {
-        String email = uniqueEmail();
-        CountDownLatch start = new CountDownLatch(1);
+		assertNotNull(client.getId());
 
-        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
-            Future<Object> first = executor.submit(
-                    () -> registerConcurrently(start, email)
-            );
+		assertEquals(client.getId(), userRepository.findByEmail(email).orElseThrow().getId());
 
-            Future<Object> second = executor.submit(
-                    () -> registerConcurrently(start, email)
-            );
+		assertTrue(clientRepository.existsById(client.getId()));
+		assertFalse(specialistRepository.existsById(client.getId()));
+	}
 
-            start.countDown();
+	@Test
+	void shouldRejectDuplicateEmailInDatabase() {
+		String email = uniqueEmail();
 
-            Object a = first.get(30, TimeUnit.SECONDS);
-            Object b = second.get(30, TimeUnit.SECONDS);
+		userRepository.saveAndFlush(new User(email, "hash-1", UserRole.CLIENT, UserStatus.ACTIVE));
 
-            int successes = 0;
-            int duplicates = 0;
+		assertThrows(DataIntegrityViolationException.class,
+				() -> userRepository.saveAndFlush(new User(email, "hash-2", UserRole.CLIENT, UserStatus.ACTIVE)));
+	}
 
-            for (Object value : new Object[]{a, b}) {
-                if (value instanceof Client) {
-                    successes++;
-                } else if (value instanceof UserEmailAlreadyExistsException) {
-                    duplicates++;
-                } else {
-                    fail("Unexpected registration result: " + value);
-                }
-            }
+	@Test
+	void shouldAllowOnlyOneConcurrentRegistrationForSameEmail() throws Exception {
+		String email = uniqueEmail();
+		CountDownLatch start = new CountDownLatch(1);
 
-            assertEquals(1, successes);
-            assertEquals(1, duplicates);
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+			Future<Object> first = executor.submit(() -> registerConcurrently(start, email));
 
-            User persisted =
-                    userRepository.findByEmail(email).orElseThrow();
+			Future<Object> second = executor.submit(() -> registerConcurrently(start, email));
 
-            assertTrue(clientRepository.existsById(persisted.getId()));
-        }
-    }
+			start.countDown();
 
-    private Object registerConcurrently(
-            CountDownLatch start,
-            String email
-    ) throws InterruptedException {
-        start.await();
+			Object a = first.get(30, TimeUnit.SECONDS);
+			Object b = second.get(30, TimeUnit.SECONDS);
 
-        try {
-            return registrationService.registerClient(
-                    email,
-                    "ConcurrentPassword123!",
-                    "Anna",
-                    "Smith"
-            );
-        } catch (UserEmailAlreadyExistsException ex) {
-            return ex;
-        }
-    }
+			int successes = 0;
+			int duplicates = 0;
+
+			for (Object value : new Object[] { a, b }) {
+				if (value instanceof Client) {
+					successes++;
+				} else if (value instanceof UserEmailAlreadyExistsException) {
+					duplicates++;
+				} else {
+					fail("Unexpected registration result: " + value);
+				}
+			}
+
+			assertEquals(1, successes);
+			assertEquals(1, duplicates);
+
+			User persisted = userRepository.findByEmail(email).orElseThrow();
+
+			assertTrue(clientRepository.existsById(persisted.getId()));
+		}
+	}
+
+	private Object registerConcurrently(CountDownLatch start, String email) throws InterruptedException {
+		start.await();
+
+		try {
+			return registrationService.registerClient(email, "ConcurrentPassword123!", "Anna", "Smith");
+		} catch (UserEmailAlreadyExistsException ex) {
+			return ex;
+		}
+	}
 }

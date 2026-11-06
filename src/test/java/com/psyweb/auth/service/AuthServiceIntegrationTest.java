@@ -111,7 +111,7 @@ class AuthServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 		assertNotNull(result.accessToken());
 		assertNotNull(result.refreshToken());
-		assertNotNull(result.expiresAt());
+		assertNotNull(result.accessExpiresAt());
 
 		assertEquals(UserRole.SPECIALIST, accessTokenService.verifyAccessToken(result.accessToken()).role());
 

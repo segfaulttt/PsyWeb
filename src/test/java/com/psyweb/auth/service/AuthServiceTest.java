@@ -75,7 +75,7 @@ class AuthServiceTest {
 		assertNotNull(result);
 		assertEquals(ACCESS_TOKEN, result.accessToken());
 		assertEquals(REFRESH_TOKEN, result.refreshToken());
-		assertEquals(ACCESS_EXPIRES_AT, result.expiresAt());
+		assertEquals(ACCESS_EXPIRES_AT, result.accessExpiresAt());
 
 		verify(userService).findUserForUpdateByEmail(EMAIL);
 		verify(passwordEncoder).matches(PASSWORD, PASSWORD_HASH);
@@ -168,7 +168,7 @@ class AuthServiceTest {
 
 		assertEquals(ACCESS_TOKEN, result.accessToken());
 		assertEquals(ROTATED_TOKEN, result.refreshToken());
-		assertEquals(ACCESS_EXPIRES_AT, result.expiresAt());
+		assertEquals(ACCESS_EXPIRES_AT, result.accessExpiresAt());
 
 		verify(refreshSessionService).rotation(REFRESH_TOKEN);
 		verify(accessTokenService).generateAccessToken(USER_ID, UserRole.CLIENT);

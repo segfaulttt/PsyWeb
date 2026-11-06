@@ -46,8 +46,8 @@ public class AuthService {
 		IssuedRefreshToken refreshToken = refreshSessionService.createSession(user.getId());
 		IssuedAccessToken accessToken = accessTokenService.generateAccessToken(user.getId(), user.getRole());
 
-		return new AuthenticationResult(accessToken.accessToken(), refreshToken.rawRefreshToken(),
-				accessToken.expiresAt());
+		return new AuthenticationResult(accessToken.accessToken(), accessToken.expiresAt(),
+				refreshToken.rawRefreshToken(), refreshToken.expiresAt());
 	}
 
 	public AuthenticationResult refresh(String rawRefreshToken) {
@@ -55,8 +55,8 @@ public class AuthService {
 		if (result instanceof Success res) {
 			IssuedAccessToken accessToken = accessTokenService.generateAccessToken(res.authenticatedUser().userId(),
 					res.authenticatedUser().role());
-			return new AuthenticationResult(accessToken.accessToken(), res.issuedRefreshToken().rawRefreshToken(),
-					accessToken.expiresAt());
+			return new AuthenticationResult(accessToken.accessToken(), accessToken.expiresAt(),
+					res.issuedRefreshToken().rawRefreshToken(), res.issuedRefreshToken().expiresAt());
 		}
 		throw new IllegalArgumentException();
 	}

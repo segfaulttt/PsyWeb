@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,6 +17,7 @@ import com.psyweb.auth.security.RoleAuthorizationManager;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.auth.security.ApiAccessDeniedHandler;
 import com.psyweb.auth.security.ApiAuthenticationEntryPoint;
+import com.psyweb.auth.security.AuthOriginValidationFilter;
 import com.psyweb.auth.security.SecurityErrorResponseWriter;
 import com.psyweb.user.service.UserService;
 
@@ -34,16 +36,26 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter,
 			RoleAuthorizationManager adminAuthorizationManager, ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-			ApiAccessDeniedHandler apiAccessDeniedHandler) throws Exception {
+			ApiAccessDeniedHandler apiAccessDeniedHandler, CorsProperties corsProperties) throws Exception {
 
 		http.authorizeHttpRequests(auth -> auth
-				.requestMatchers(HttpMethod.POST, "/api/auth/register/client", "/api/auth/register/specialist")
-				.permitAll().requestMatchers("/api/admin/**").access(adminAuthorizationManager).anyRequest().denyAll());
+				.requestMatchers(HttpMethod.POST, 
+						"/api/auth/register/client", 
+						"/api/auth/register/specialist").permitAll()
+				.requestMatchers(HttpMethod.GET, 
+						"/api/auth/csrf").permitAll()
+				.requestMatchers(HttpMethod.POST, 
+						"/api/auth/login",
+				        "/api/auth/refresh",
+				        "/api/auth/logout").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/logout-all").authenticated()
+				.requestMatchers("/api/admin/**")
+				.access(adminAuthorizationManager).anyRequest().denyAll());
 
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint)
 				.accessDeniedHandler(apiAccessDeniedHandler));
 
-		http.csrf(csrf -> csrf.disable());
+		http.csrf(csrf -> csrf.spa());
 
 		http.headers(headers -> headers
 				.referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
@@ -60,6 +72,8 @@ public class SecurityConfig {
 
 		http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+		http.addFilterBefore(new AuthOriginValidationFilter(corsProperties), CsrfFilter.class);
+		
 		return http.build();
 	}
 
@@ -101,7 +115,7 @@ public class SecurityConfig {
 			AuthorizationPolicy authorizationPolicy) {
 		return new RoleAuthorizationManager(userService, authorizationPolicy, UserRole.ADMIN);
 	}
-	
+
 	@Bean
 	SecurityContextHolderStrategy securityContextHolderStrategy() {
 		return SecurityContextHolder.getContextHolderStrategy();

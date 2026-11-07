@@ -41,12 +41,8 @@ public class AuthController {
 	private final RefreshCookieFactory cookieFactory;
 	private final CurrentActorProvider currentActorProvider;
 
-	public AuthController(
-			RegistrationService registrationService, 
-			RegistrationWebMapper registrationWebMapper,
-			AuthService authService, 
-			AuthWebMapper authWebMapper, 
-			RefreshCookieFactory cookieFactory,
+	public AuthController(RegistrationService registrationService, RegistrationWebMapper registrationWebMapper,
+			AuthService authService, AuthWebMapper authWebMapper, RefreshCookieFactory cookieFactory,
 			CurrentActorProvider currentActorProvider) {
 		this.registrationService = registrationService;
 		this.registrationWebMapper = registrationWebMapper;
@@ -73,8 +69,8 @@ public class AuthController {
 	}
 
 	@GetMapping("/csrf")
-	public CsrfToken csrf(CsrfToken csrfToken) {
-		return csrfToken;
+	public ResponseEntity<CsrfToken> csrf(CsrfToken csrfToken) {
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(csrfToken);
 	}
 
 	@PostMapping("/login")

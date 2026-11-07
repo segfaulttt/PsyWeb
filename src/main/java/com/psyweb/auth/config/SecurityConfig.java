@@ -13,6 +13,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.http.HttpMethod;
 
 import com.psyweb.auth.authorization.AuthorizationPolicy;
+import com.psyweb.auth.ratelimit.AuthRateLimitFilter;
+import com.psyweb.auth.ratelimit.AuthRateLimiter;
 import com.psyweb.auth.security.RoleAuthorizationManager;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.auth.security.ApiAccessDeniedHandler;
@@ -30,27 +32,21 @@ import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties(CorsProperties.class)
+@EnableConfigurationProperties({ CorsProperties.class, AuthRateLimitProperties.class })
 public class SecurityConfig {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter,
 			RoleAuthorizationManager adminAuthorizationManager, ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-			ApiAccessDeniedHandler apiAccessDeniedHandler, CorsProperties corsProperties) throws Exception {
+			ApiAccessDeniedHandler apiAccessDeniedHandler, CorsProperties corsProperties, AuthRateLimiter rateLimiter,
+			AuthRateLimitProperties rateLimitProperties) throws Exception {
 
 		http.authorizeHttpRequests(auth -> auth
-				.requestMatchers(HttpMethod.POST, 
-						"/api/auth/register/client", 
-						"/api/auth/register/specialist").permitAll()
-				.requestMatchers(HttpMethod.GET, 
-						"/api/auth/csrf").permitAll()
-				.requestMatchers(HttpMethod.POST, 
-						"/api/auth/login",
-				        "/api/auth/refresh",
-				        "/api/auth/logout").permitAll()
-				.requestMatchers(HttpMethod.POST, "/api/auth/logout-all").authenticated()
-				.requestMatchers("/api/admin/**")
-				.access(adminAuthorizationManager).anyRequest().denyAll());
+				.requestMatchers(HttpMethod.POST, "/api/auth/register/client", "/api/auth/register/specialist")
+				.permitAll().requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout")
+				.permitAll().requestMatchers(HttpMethod.POST, "/api/auth/logout-all").authenticated()
+				.requestMatchers("/api/admin/**").access(adminAuthorizationManager).anyRequest().denyAll());
 
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint)
 				.accessDeniedHandler(apiAccessDeniedHandler));
@@ -73,7 +69,7 @@ public class SecurityConfig {
 		http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
 		http.addFilterBefore(new AuthOriginValidationFilter(corsProperties), CsrfFilter.class);
-		
+		http.addFilterAfter(new AuthRateLimitFilter(rateLimiter, rateLimitProperties), CsrfFilter.class);
 		return http.build();
 	}
 

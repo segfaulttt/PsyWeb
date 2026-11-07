@@ -33,3 +33,10 @@ psyweb:
       issuer: psyweb
       audience: psyweb-api
       access-token-ttl: 15m
+
+  security:
+    rate-limit:
+      login-capacity: 10
+      login-refill-period: 1m
+      refresh-capacity: 30
+      refresh-refill-period: 1m

@@ -10,10 +10,13 @@ import com.psyweb.auth.ratelimit.RateLimitPolicy;
 @Validated
 @ConfigurationProperties(prefix = "psyweb.security.rate-limit")
 public record AuthRateLimitProperties(long loginCapacity, Duration loginRefillPeriod, long refreshCapacity,
-		Duration refreshRefillPeriod) {
+		Duration refreshRefillPeriod, long passwordResetRequestCapacity, Duration passwordResetRequestRefillPeriod,
+		long passwordResetConfirmCapacity, Duration passwordResetConfirmRefillPeriod) {
 	public AuthRateLimitProperties {
 		new RateLimitPolicy(loginCapacity, loginRefillPeriod);
 		new RateLimitPolicy(refreshCapacity, refreshRefillPeriod);
+		new RateLimitPolicy(passwordResetRequestCapacity, passwordResetRequestRefillPeriod);
+		new RateLimitPolicy(passwordResetConfirmCapacity, passwordResetConfirmRefillPeriod);
 	}
 
 	public RateLimitPolicy loginPolicy() {
@@ -22,5 +25,12 @@ public record AuthRateLimitProperties(long loginCapacity, Duration loginRefillPe
 
 	public RateLimitPolicy refreshPolicy() {
 		return new RateLimitPolicy(refreshCapacity, refreshRefillPeriod);
+	}
+	
+	public RateLimitPolicy passwordResetRequestPolicy() {
+		return new RateLimitPolicy(passwordResetRequestCapacity, passwordResetRequestRefillPeriod);
+	}
+	public RateLimitPolicy passwordResetConfirmPolicy() {
+		return new RateLimitPolicy(passwordResetConfirmCapacity, passwordResetConfirmRefillPeriod);
 	}
 }

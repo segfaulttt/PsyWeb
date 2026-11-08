@@ -40,3 +40,7 @@ psyweb:
       login-refill-period: 1m
       refresh-capacity: 30
       refresh-refill-period: 1m
+      password-reset-request-capacity: 5
+      password-reset-request-refill-period: 15m
+      password-reset-confirm-capacity: 10
+      password-reset-confirm-refill-period: 15m

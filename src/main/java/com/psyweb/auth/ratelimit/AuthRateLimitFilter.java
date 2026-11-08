@@ -30,18 +30,38 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 		}
 
 		return !request.getServletPath().equals("/api/auth/login")
-				&& !request.getServletPath().equals("/api/auth/refresh");
+		        && !request.getServletPath().equals("/api/auth/refresh")
+		        && !request.getServletPath().equals("/api/auth/password-reset/request")
+		        && !request.getServletPath().equals("/api/auth/password-reset/confirm");
 	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 
-		boolean login = request.getServletPath().equals("/api/auth/login");
-
-		RateLimitPolicy policy = login ? properties.loginPolicy() : properties.refreshPolicy();
-
-		String endpoint = login ? "login" : "refresh";
+		RateLimitPolicy policy;
+		String endpoint;
+		switch (request.getServletPath()) {
+		case "/api/auth/login" :
+			policy = properties.loginPolicy();
+			endpoint = "login";
+			break;
+		case "/api/auth/refresh" :
+			policy = properties.refreshPolicy();
+			endpoint = "refresh";
+			break;
+		case "/api/auth/password-reset/request" :
+			policy = properties.passwordResetRequestPolicy();
+			endpoint = "request";
+			break;
+		case "/api/auth/password-reset/confirm" :
+			policy = properties.passwordResetConfirmPolicy();
+			endpoint = "confirm";
+			break;
+		default:
+		    filterChain.doFilter(request, response);
+		    return;	
+		}
 
 		String key = "auth:" + endpoint + ":ip:" + request.getRemoteAddr();
 

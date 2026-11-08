@@ -42,10 +42,11 @@ public class SecurityConfig {
 			AuthRateLimitProperties rateLimitProperties) throws Exception {
 
 		http.authorizeHttpRequests(auth -> auth
-				.requestMatchers(HttpMethod.POST, "/api/auth/register/client", "/api/auth/register/specialist")
-				.permitAll().requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-				.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout")
-				.permitAll().requestMatchers(HttpMethod.POST, "/api/auth/logout-all").authenticated()
+				.requestMatchers(HttpMethod.POST, "/api/auth/register/client", "/api/auth/register/specialist").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/password-reset/request", "/api/auth/password-reset/confirm").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/auth/logout-all").authenticated()
 				.requestMatchers("/api/admin/**").access(adminAuthorizationManager).anyRequest().denyAll());
 
 		http.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(apiAuthenticationEntryPoint)

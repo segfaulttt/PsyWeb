@@ -16,7 +16,7 @@ public class InMemoryAuthRateLimiter implements AuthRateLimiter {
 	private final Cache<String, Bucket> buckets;
 
 	public InMemoryAuthRateLimiter() {
-		this.buckets = Caffeine.newBuilder().maximumSize(100_000).expireAfterAccess(Duration.ofMinutes(5)).build();
+		this.buckets = Caffeine.newBuilder().maximumSize(100_000).expireAfterAccess(Duration.ofMinutes(15)).build();
 	}
 
 	@Override

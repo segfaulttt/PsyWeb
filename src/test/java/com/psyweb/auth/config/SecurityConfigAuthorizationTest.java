@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.psyweb.auth.ratelimit.AuthRateLimiter;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
@@ -43,6 +44,9 @@ class SecurityConfigAuthorizationTest {
 
 	@MockitoBean
 	private UserService userService;
+	
+	@MockitoBean
+	private AuthRateLimiter authRateLimiter;
 
 	@MockitoBean
 	private JwtDecoder jwtDecoder;

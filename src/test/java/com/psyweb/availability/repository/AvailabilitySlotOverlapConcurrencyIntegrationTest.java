@@ -61,11 +61,12 @@ public class AvailabilitySlotOverlapConcurrencyIntegrationTest extends PostgreSQ
 		ExecutorService executor = Executors.newFixedThreadPool(2);
 
 		try {
-			Future<Void> first = executor
-					.submit(() -> insertSlotInIndependentTransaction(specialistId, start, start.plus(Duration.ofHours(1)), barrier));
+			Future<Void> first = executor.submit(() -> insertSlotInIndependentTransaction(specialistId, start,
+					start.plus(Duration.ofHours(1)), barrier));
 
-			Future<Void> second = executor.submit(() -> insertSlotInIndependentTransaction(specialistId,
-					start.plus(Duration.ofMinutes(30)), start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30)), barrier));
+			Future<Void> second = executor
+					.submit(() -> insertSlotInIndependentTransaction(specialistId, start.plus(Duration.ofMinutes(30)),
+							start.plus(Duration.ofHours(1)).plus(Duration.ofMinutes(30)), barrier));
 
 			int successfulAttempts = 0;
 			int failedAttempts = 0;
@@ -76,8 +77,7 @@ public class AvailabilitySlotOverlapConcurrencyIntegrationTest extends PostgreSQ
 					successfulAttempts++;
 				} catch (ExecutionException e) {
 					DataIntegrityViolationException exception = findDataIntegrityViolation(e.getCause());
-
-					assertNotNull(exception);
+					assertNotNull(exception, () -> "Unexpected exception: " + e.getCause());
 					assertConstraintName(exception, "no_overlapping_active_slots");
 
 					failedAttempts++;

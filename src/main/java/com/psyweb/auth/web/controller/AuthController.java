@@ -16,11 +16,14 @@ import org.springframework.security.web.csrf.CsrfToken;
 
 import com.psyweb.auth.authorization.CurrentActorProvider;
 import com.psyweb.auth.service.AuthService;
+import com.psyweb.auth.service.PasswordResetService;
 import com.psyweb.auth.service.RegistrationService;
 import com.psyweb.auth.service.dto.AuthenticationResult;
 import com.psyweb.auth.web.cookie.RefreshCookieFactory;
 import com.psyweb.auth.web.dto.request.ClientRegistrationRequest;
 import com.psyweb.auth.web.dto.request.LoginRequest;
+import com.psyweb.auth.web.dto.request.PasswordResetConfirmRequest;
+import com.psyweb.auth.web.dto.request.PasswordResetRequest;
 import com.psyweb.auth.web.dto.request.SpecialistRegistrationRequest;
 import com.psyweb.auth.web.dto.response.AuthenticationResponse;
 import com.psyweb.auth.web.dto.response.RegistrationResponse;
@@ -40,16 +43,18 @@ public class AuthController {
 	private final AuthWebMapper authWebMapper;
 	private final RefreshCookieFactory cookieFactory;
 	private final CurrentActorProvider currentActorProvider;
+	private final PasswordResetService passwordResetService;
 
 	public AuthController(RegistrationService registrationService, RegistrationWebMapper registrationWebMapper,
 			AuthService authService, AuthWebMapper authWebMapper, RefreshCookieFactory cookieFactory,
-			CurrentActorProvider currentActorProvider) {
+			CurrentActorProvider currentActorProvider, PasswordResetService passwordResetService) {
 		this.registrationService = registrationService;
 		this.registrationWebMapper = registrationWebMapper;
 		this.authService = authService;
 		this.authWebMapper = authWebMapper;
 		this.cookieFactory = cookieFactory;
 		this.currentActorProvider = currentActorProvider;
+		this.passwordResetService = passwordResetService;
 	}
 
 	@PostMapping("/register/client")
@@ -123,5 +128,17 @@ public class AuthController {
 
 		return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookie.toString())
 				.cacheControl(CacheControl.noStore()).build();
+	}
+
+	@PostMapping("/password-reset/request")
+	public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+		passwordResetService.requestPasswordReset(request.email());
+		return ResponseEntity.accepted().build();
+	}
+
+	@PostMapping("/password-reset/confirm")
+	public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+		passwordResetService.confirmPasswordReset(request.token(), request.newPassword());
+		return ResponseEntity.noContent().build();
 	}
 }

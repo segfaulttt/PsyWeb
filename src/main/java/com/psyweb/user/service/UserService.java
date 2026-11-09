@@ -104,8 +104,7 @@ public class UserService {
 		if (userId == null) {
 			throw new InvalidUserDataException("User ID cannot be null");
 		}
-		return userRepository.findForUpdateById(userId)
-				.orElseThrow(() -> new UserNotFoundException("User not found"));
+		return userRepository.findForUpdateById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
 	}
 
 	public User findUserByEmail(String email) {
@@ -114,10 +113,26 @@ public class UserService {
 
 		return user;
 	}
-	
+
 	public User findUserForUpdateByEmail(String email) {
 		email = User.normalizeEmail(email);
-		User user = userRepository.findForUpdateByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		User user = userRepository.findForUpdateByEmail(email)
+				.orElseThrow(() -> new UserNotFoundException("User not found"));
 		return user;
+	}
+
+	@Transactional
+	public void resetPasswordHash(Long userId, String newPasswordHash) {
+		if (userId == null) {
+			throw new InvalidUserDataException("User ID cannot be null");
+		}
+
+		if (newPasswordHash == null || newPasswordHash.isBlank()) {
+			throw new InvalidUserDataException("Password hash cannot be blank");
+		}
+
+		User user = getActiveUserForUpdate(userId);
+
+		user.changePasswordHash(newPasswordHash);
 	}
 }

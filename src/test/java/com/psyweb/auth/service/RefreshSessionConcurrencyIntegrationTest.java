@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.psyweb.auth.domain.RefreshSession;
+import com.psyweb.auth.exception.InvalidRefreshTokenException;
 import com.psyweb.auth.repository.RefreshSessionRepository;
 import com.psyweb.auth.service.dto.IssuedRefreshToken;
 import com.psyweb.auth.service.dto.RefreshRotationResult;
@@ -100,7 +101,7 @@ class RefreshSessionConcurrencyIntegrationTest extends PostgreSQLIntegrationTest
 
 			Success success = firstResult instanceof Success s ? s : (Success) secondResult;
 
-			assertThrows(IllegalArgumentException.class,
+			assertThrows(InvalidRefreshTokenException.class,
 					() -> refreshSessionService.rotation(success.issuedRefreshToken().rawRefreshToken()));
 
 		} finally {
@@ -152,7 +153,7 @@ class RefreshSessionConcurrencyIntegrationTest extends PostgreSQLIntegrationTest
 					"Rotation must either succeed before logout or be rejected");
 
 			if (rotationResult instanceof Success success) {
-				assertThrows(IllegalArgumentException.class,
+				assertThrows(InvalidRefreshTokenException.class,
 						() -> refreshSessionService.rotation(success.issuedRefreshToken().rawRefreshToken()));
 			}
 

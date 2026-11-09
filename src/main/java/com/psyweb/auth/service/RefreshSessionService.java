@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.psyweb.auth.domain.RefreshSession;
 import com.psyweb.auth.domain.RefreshToken;
+import com.psyweb.auth.exception.InvalidRefreshTokenException;
 import com.psyweb.auth.repository.RefreshSessionRepository;
 import com.psyweb.auth.repository.RefreshTokenRepository;
 import com.psyweb.auth.service.dto.IssuedRefreshToken;
@@ -17,6 +18,7 @@ import com.psyweb.auth.service.dto.RefreshRotationResult;
 import com.psyweb.auth.service.dto.ReplayDetected;
 import com.psyweb.auth.service.dto.Success;
 import com.psyweb.user.domain.User;
+import com.psyweb.user.exception.UserAccessForbiddenException;
 import com.psyweb.user.service.UserService;
 
 import jakarta.persistence.EntityManager;
@@ -69,13 +71,21 @@ public class RefreshSessionService {
 	@Transactional
 	public RefreshRotationResult rotation(String rawRefreshToken) {
 		if (rawRefreshToken == null) {
-			throw new IllegalArgumentException("Incorrect refresh token");
+			throw new InvalidRefreshTokenException();
 		}
 		String hashedToken = tokenGenerator.hashToken(rawRefreshToken);
 		RefreshToken oldToken = tokenRepository.findByTokenHash(hashedToken)
-				.orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
-		User user = userService
-				.getActiveUserForUpdate(sessionRepository.findById(oldToken.getSessionId()).orElseThrow().getUserId());
+				.orElseThrow(() -> new InvalidRefreshTokenException());
+		Long userId = sessionRepository.findById(oldToken.getSessionId())
+		        .orElseThrow()
+		        .getUserId();
+
+		User user;
+		try {
+		    user = userService.getActiveUserForUpdate(userId);
+		} catch (UserAccessForbiddenException e) {
+		    throw new InvalidRefreshTokenException();
+		}
 		RefreshSession session = sessionRepository.findForRefreshById(oldToken.getSessionId())
 				.orElseThrow(() -> new IllegalArgumentException("Session not found"));
 		oldToken = tokenRepository.findForRotationById(oldToken.getId())
@@ -88,11 +98,11 @@ public class RefreshSessionService {
 		}
 
 		if (session.getRevokedAt() != null) {
-			throw new IllegalArgumentException("Session already revoked");
+			throw new InvalidRefreshTokenException();
 		}
 
 		if (!session.getExpiresAt().isAfter(now)) {
-			throw new IllegalArgumentException("Session already expired");
+			throw new InvalidRefreshTokenException();
 		}
 
 		if (oldToken.getConsumedAt() != null) {

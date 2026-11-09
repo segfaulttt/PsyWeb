@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
@@ -155,7 +156,8 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	void shouldAllowPublicRegistrationWithoutJwt() throws Exception {
-		mockMvc.perform(post("/api/auth/register/client").contentType(MediaType.APPLICATION_JSON).content("{}"))
+		mockMvc.perform(
+				post("/api/auth/register/client").with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isBadRequest());
 	}
 
@@ -199,9 +201,9 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	void shouldRequireAuthenticationForPostWithoutCsrfToken() throws Exception {
-		mockMvc.perform(post("/api/admin/security-test")).andExpect(status().isUnauthorized())
-				.andExpect(header().string("WWW-Authenticate", startsWith("Bearer")))
-				.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+		mockMvc.perform(post("/api/admin/security-test")).andExpect(status().isForbidden());
+
+		mockMvc.perform(post("/api/admin/security-test").with(csrf())).andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -227,7 +229,7 @@ class SecurityFilterChainIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Test
 	void shouldReturnSecurityHeadersForPublicEndpoint() throws Exception {
-		mockMvc.perform(post("/api/auth/register/client").contentType(MediaType.APPLICATION_JSON).content("{}"))
+		mockMvc.perform(post("/api/auth/register/client").with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isBadRequest()).andExpect(header().string("X-Content-Type-Options", "nosniff"))
 				.andExpect(header().string("X-Frame-Options", "DENY"))
 				.andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))

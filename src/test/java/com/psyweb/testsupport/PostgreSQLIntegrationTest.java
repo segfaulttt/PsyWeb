@@ -11,13 +11,19 @@ import java.util.Base64;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
+
+import com.psyweb.auth.service.PasswordResetNotificationSender;
 
 @SpringBootTest
 @ActiveProfiles("test")
 public abstract class PostgreSQLIntegrationTest {
 
+	@MockitoBean
+	protected PasswordResetNotificationSender passwordResetNotificationSender;
+	
 	protected static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16")
 			.withDatabaseName("psyweb").withUsername("psyweb").withPassword("psyweb");
 

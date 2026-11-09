@@ -21,8 +21,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import com.psyweb.auth.exception.InvalidPasswordResetTokenException;
+import com.psyweb.auth.authorization.CurrentActorProvider;
 import com.psyweb.auth.exception.InvalidPasswordException;
+import com.psyweb.auth.service.AuthService;
+import com.psyweb.auth.service.PasswordResetService;
 import com.psyweb.auth.service.RegistrationService;
+import com.psyweb.auth.web.cookie.RefreshCookieFactory;
+import com.psyweb.auth.web.mapper.AuthWebMapper;
 import com.psyweb.auth.web.mapper.RegistrationWebMapper;
 import com.psyweb.client.domain.Client;
 import com.psyweb.common.web.exception.GlobalExceptionHandler;
@@ -36,8 +42,27 @@ class AuthControllerTest {
 
 	private static final String SPECIALIST_URL = "/api/auth/register/specialist";
 
+	private static final String PASSWORD_RESET_REQUEST_URL = "/api/auth/password-reset/request";
+
+	private static final String PASSWORD_RESET_CONFIRM_URL = "/api/auth/password-reset/confirm";
+
 	@Mock
 	private RegistrationService registrationService;
+
+	@Mock
+	private AuthService authService;
+
+	@Mock
+	private AuthWebMapper authWebMapper;
+
+	@Mock
+	private RefreshCookieFactory cookieFactory;
+
+	@Mock
+	private CurrentActorProvider currentActorProvider;
+
+	@Mock
+	private PasswordResetService passwordResetService;
 
 	private MockMvc mockMvc;
 
@@ -47,7 +72,8 @@ class AuthControllerTest {
 	void setUp() {
 		RegistrationWebMapper mapper = new RegistrationWebMapper();
 
-		AuthController controller = new AuthController(registrationService, mapper);
+		AuthController controller = new AuthController(registrationService, mapper, authService, authWebMapper,
+				cookieFactory, currentActorProvider, passwordResetService);
 
 		validator = new LocalValidatorFactoryBean();
 		validator.afterPropertiesSet();
@@ -93,8 +119,8 @@ class AuthControllerTest {
 		Specialist specialist = mock(Specialist.class);
 		when(specialist.getId()).thenReturn(20L);
 
-		when(registrationService.registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones", ZoneId.of("Europe/Amsterdam")))
-				.thenReturn(specialist);
+		when(registrationService.registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones",
+				ZoneId.of("Europe/Amsterdam"))).thenReturn(specialist);
 
 		String json = """
 				{
@@ -112,7 +138,8 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.passwordHash").doesNotExist())
 				.andExpect(jsonPath("$.approvalStatus").doesNotExist());
 
-		verify(registrationService).registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones", ZoneId.of("Europe/Amsterdam"));
+		verify(registrationService).registerSpecialist("kate@example.com", "StrongPassword123!", "Kate", "Jones",
+				ZoneId.of("Europe/Amsterdam"));
 	}
 
 	@Test
@@ -251,5 +278,114 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.fieldErrors.timeZone").isArray());
 
 		verifyNoInteractions(registrationService);
+	}
+
+	@Test
+	void shouldReturn202WhenPasswordResetRequested() throws Exception {
+		String json = """
+				{
+				  "email": "anna@example.com"
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_REQUEST_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isAccepted()).andExpect(content().string(""));
+
+		verify(passwordResetService).requestPasswordReset("anna@example.com");
+	}
+
+	@Test
+	void shouldReturn400WhenPasswordResetEmailIsInvalid() throws Exception {
+		String json = """
+				{
+				  "email": "invalid-email"
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_REQUEST_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.email").isArray());
+
+		verifyNoInteractions(passwordResetService);
+	}
+
+	@Test
+	void shouldReturn400WhenPasswordResetEmailIsBlank() throws Exception {
+		String json = """
+				{
+				  "email": " "
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_REQUEST_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+		verifyNoInteractions(passwordResetService);
+	}
+
+	@Test
+	void shouldReturn204WhenPasswordResetConfirmed() throws Exception {
+		String json = """
+				{
+				  "token": "valid-reset-token",
+				  "newPassword": "NewStrongPassword123!"
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_CONFIRM_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isNoContent()).andExpect(content().string(""));
+
+		verify(passwordResetService).confirmPasswordReset("valid-reset-token", "NewStrongPassword123!");
+	}
+
+	@Test
+	void shouldReturn400WhenPasswordResetTokenIsBlank() throws Exception {
+		String json = """
+				{
+				  "token": " ",
+				  "newPassword": "NewStrongPassword123!"
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_CONFIRM_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.token").isArray());
+
+		verifyNoInteractions(passwordResetService);
+	}
+
+	@Test
+	void shouldReturn400WhenNewPasswordIsBlank() throws Exception {
+		String json = """
+				{
+				  "token": "valid-reset-token",
+				  "newPassword": " "
+				}
+				""";
+
+		mockMvc.perform(post(PASSWORD_RESET_CONFIRM_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors.newPassword").isArray());
+
+		verifyNoInteractions(passwordResetService);
+	}
+
+	@Test
+	void shouldReturn400WhenPasswordResetTokenIsInvalid() throws Exception {
+		String json = """
+				{
+				  "token": "invalid-reset-token",
+				  "newPassword": "NewStrongPassword123!"
+				}
+				""";
+
+		doThrow(new InvalidPasswordResetTokenException()).when(passwordResetService)
+				.confirmPasswordReset("invalid-reset-token", "NewStrongPassword123!");
+
+		mockMvc.perform(post(PASSWORD_RESET_CONFIRM_URL).contentType(MediaType.APPLICATION_JSON).content(json))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_PASSWORD_RESET_TOKEN"))
+				.andExpect(jsonPath("$.message").value("Invalid or expired password reset token"));
+
+		verify(passwordResetService).confirmPasswordReset("invalid-reset-token", "NewStrongPassword123!");
 	}
 }

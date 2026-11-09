@@ -13,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.psyweb.auth.exception.InvalidCredentialsException;
+import com.psyweb.auth.exception.InvalidRefreshTokenException;
 import com.psyweb.auth.service.dto.AuthenticationResult;
 import com.psyweb.auth.service.dto.IssuedAccessToken;
 import com.psyweb.auth.service.dto.IssuedRefreshToken;
@@ -89,7 +91,7 @@ class AuthServiceTest {
 		when(user.getPasswordHash()).thenReturn(PASSWORD_HASH);
 		when(passwordEncoder.matches("wrong-password", PASSWORD_HASH)).thenReturn(false);
 
-		assertThrows(IllegalArgumentException.class, () -> authService.login(EMAIL, "wrong-password"));
+		assertThrows(InvalidCredentialsException.class, () -> authService.login(EMAIL, "wrong-password"));
 
 		verifyNoInteractions(refreshSessionService, accessTokenService);
 	}
@@ -98,7 +100,7 @@ class AuthServiceTest {
 	void shouldRejectLoginWhenUserDoesNotExist() {
 		when(userService.findUserForUpdateByEmail(EMAIL)).thenThrow(new UserNotFoundException("User not found"));
 
-		assertThrows(UserNotFoundException.class, () -> authService.login(EMAIL, PASSWORD));
+		assertThrows(InvalidCredentialsException.class, () -> authService.login(EMAIL, PASSWORD));
 
 		verifyNoInteractions(passwordEncoder, refreshSessionService, accessTokenService);
 	}
@@ -179,7 +181,7 @@ class AuthServiceTest {
 	void shouldNotIssueAccessTokenWhenReplayIsDetected() {
 		when(refreshSessionService.rotation(REFRESH_TOKEN)).thenReturn(new ReplayDetected());
 
-		assertThrows(IllegalArgumentException.class, () -> authService.refresh(REFRESH_TOKEN));
+		assertThrows(InvalidRefreshTokenException.class, () -> authService.refresh(REFRESH_TOKEN));
 
 		verify(refreshSessionService).rotation(REFRESH_TOKEN);
 		verifyNoInteractions(accessTokenService, userService, passwordEncoder);

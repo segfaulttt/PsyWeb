@@ -64,14 +64,11 @@ public class AuthController {
 		this.passwordResetService = passwordResetService;
 	}
 
-	@Operation(
-	        summary = "Register client",
-	        description = "Creates a new client account."
-	)
-	@ApiResponse(
-	        responseCode = "201",
-	        description = "Client registered successfully"
-	)
+	@Operation(summary = "Register client", description = "Creates a new client account.")
+	@ApiResponse(responseCode = "201", description = "Client registered successfully")
+	@ApiResponse(responseCode = "400", description = "Invalid registration data")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "409", description = "Email is already registered")
 	@PostMapping("/register/client")
 	@ResponseStatus(HttpStatus.CREATED)
 	public RegistrationResponse registerClient(@Valid @RequestBody ClientRegistrationRequest request) {
@@ -80,15 +77,11 @@ public class AuthController {
 		return registrationWebMapper.toResponse(client);
 	}
 
-	
-	@Operation(
-	        summary = "Register specialist",
-	        description = "Creates a new specialist account."
-	)
-	@ApiResponse(
-	        responseCode = "201",
-	        description = "Specialist registered successfully"
-	)
+	@Operation(summary = "Register specialist", description = "Creates a new specialist account.")
+	@ApiResponse(responseCode = "201", description = "Specialist registered successfully")
+	@ApiResponse(responseCode = "400", description = "Invalid registration data")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "409", description = "Email is already registered")
 	@PostMapping("/register/specialist")
 	@ResponseStatus(HttpStatus.CREATED)
 	public RegistrationResponse registerSpecialist(@Valid @RequestBody SpecialistRegistrationRequest request) {
@@ -97,30 +90,19 @@ public class AuthController {
 		return registrationWebMapper.toResponse(specialist);
 	}
 
-	
-	@Operation(
-	        summary = "Get CSRF token",
-	        description = "Returns a CSRF token for protecting subsequent state-changing requests."
-	)
-	@ApiResponse(
-	        responseCode = "200",
-	        description = "CSRF token retrieved successfully"
-	)
+	@Operation(summary = "Get CSRF token", description = "Returns a CSRF token for protecting subsequent state-changing requests.")
+	@ApiResponse(responseCode = "200", description = "CSRF token retrieved successfully")
 	@GetMapping("/csrf")
 	public ResponseEntity<CsrfToken> csrf(CsrfToken csrfToken) {
 		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(csrfToken);
 	}
 
-	
-	@Operation(
-			summary = "User login",
-			description = "Authenticates the user and returns an access token. Sets a refresh token in an HTTP-only cookie."
-	)
-	@ApiResponse(
-			responseCode = "200",
-			description = "User logged in successfully",
-			headers = @Header(name = "Set-Cookie", description = "Sets the refresh token cookie used to renew authentication.", schema = @Schema(type = "string"))
-	)
+	@Operation(summary = "User login", description = "Authenticates the user and returns an access token. Sets a refresh token in an HTTP-only cookie.")
+	@ApiResponse(responseCode = "200", description = "User logged in successfully", headers = @Header(name = "Set-Cookie", description = "Sets the refresh token cookie used to renew authentication.", schema = @Schema(type = "string")))
+	@ApiResponse(responseCode = "400", description = "Invalid login request data")
+	@ApiResponse(responseCode = "401", description = "Invalid email or password")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "429", description = "Too many login attempts")
 	@PostMapping("/login")
 	public ResponseEntity<AuthenticationResponse> loginUser(@Valid @RequestBody LoginRequest request) {
 		AuthenticationResult result = authService.login(request.email(), request.password());
@@ -133,19 +115,14 @@ public class AuthController {
 				.cacheControl(CacheControl.noStore()).body(response);
 	}
 
-	
-	@Operation(
-			summary = "Refresh authentication",
-			description = "Issues a new access token using a valid refresh token cookie and rotates the refresh token."
-	)
-	@ApiResponse(
-			responseCode = "200",
-			description = "Authentication refreshed successfully",
-			headers = @Header(name = "Set-Cookie", description = "Sets the rotated refresh token cookie.", schema = @Schema(type = "string"))
-	)
+	@Operation(summary = "Refresh authentication", description = "Issues a new access token using a valid refresh token cookie and rotates the refresh token.")
+	@ApiResponse(responseCode = "200", description = "Authentication refreshed successfully", headers = @Header(name = "Set-Cookie", description = "Sets the rotated refresh token cookie.", schema = @Schema(type = "string")))
+	@ApiResponse(responseCode = "401", description = "Invalid, expired, or reused refresh token")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "429", description = "Too many refresh attempts")
 	@PostMapping("/refresh")
 	public ResponseEntity<AuthenticationResponse> refresh(
-			@CookieValue(name = "__Host-refreshToken") String refreshToken) {
+			@CookieValue(name = "__Host-refreshToken", required = false) String refreshToken) {
 
 		AuthenticationResult result = authService.refresh(refreshToken);
 
@@ -157,16 +134,9 @@ public class AuthController {
 				.cacheControl(CacheControl.noStore()).body(response);
 	}
 
-	
-	@Operation(
-			summary = "Log out",
-			description = "Revokes the provided refresh token, if present, and clears the refresh token cookie."
-	)
-	@ApiResponse(
-			responseCode = "204",
-			description = "Logged out successfully",
-			headers = @Header(name = "Set-Cookie", description = "Clears the refresh token cookie.", schema = @Schema(type = "string"))
-	)
+	@Operation(summary = "Log out", description = "Revokes the provided refresh token, if present, and clears the refresh token cookie.")
+	@ApiResponse(responseCode = "204", description = "Logged out successfully", headers = @Header(name = "Set-Cookie", description = "Clears the refresh token cookie.", schema = @Schema(type = "string")))
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
 	@PostMapping("/logout")
 	public ResponseEntity<Void> logout(
 			@CookieValue(name = "__Host-refreshToken", required = false) String refreshToken) {
@@ -181,17 +151,10 @@ public class AuthController {
 				.cacheControl(CacheControl.noStore()).build();
 	}
 
-	
-	@Operation(
-			summary = "Log out from all devices",
-			description = "Revokes all refresh tokens belonging to the authenticated user and clears the current refresh token cookie.",
-			security = @SecurityRequirement(name = "Bearer auth")
-	)
-	@ApiResponse(
-			responseCode = "204",
-			description = "Logged out from all devices successfully",
-			headers = @Header(name = "Set-Cookie", description = "Clears the refresh token cookie on the current device.", schema = @Schema(type = "string"))
-	)
+	@Operation(summary = "Log out from all devices", description = "Revokes all refresh tokens belonging to the authenticated user and clears the current refresh token cookie.", security = @SecurityRequirement(name = "Bearer auth"))
+	@ApiResponse(responseCode = "204", description = "Logged out from all devices successfully", headers = @Header(name = "Set-Cookie", description = "Clears the refresh token cookie on the current device.", schema = @Schema(type = "string")))
+	@ApiResponse(responseCode = "401", description = "Authentication required")
+	@ApiResponse(responseCode = "403", description = "Access denied or invalid CSRF token")
 	@PostMapping("/logout-all")
 	public ResponseEntity<Void> logoutAll() {
 		Long userId = currentActorProvider.requireCurrentActor().userId();
@@ -204,30 +167,22 @@ public class AuthController {
 				.cacheControl(CacheControl.noStore()).build();
 	}
 
-	
-	@Operation(
-			summary = "Request password reset",
-			description = "Accepts a password reset request for the provided email address."
-	)
-	@ApiResponse(
-			responseCode = "202",
-			description = "Password reset request accepted"
-	)
+	@Operation(summary = "Request password reset", description = "Accepts a password reset request for the provided email address.")
+	@ApiResponse(responseCode = "202", description = "Password reset request accepted")
+	@ApiResponse(responseCode = "400", description = "Invalid password reset request")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "429", description = "Too many password reset requests")
 	@PostMapping("/password-reset/request")
 	public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
 		passwordResetService.requestPasswordReset(request.email());
 		return ResponseEntity.accepted().build();
 	}
 
-	
-	@Operation(
-			summary = "Confirm password reset",
-			description = "Resets the account password using a valid password reset token."
-	)
-	@ApiResponse(
-			responseCode = "204",
-			description = "Password reset successfully"
-	)
+	@Operation(summary = "Confirm password reset", description = "Resets the account password using a valid password reset token.")
+	@ApiResponse(responseCode = "204", description = "Password reset successfully")
+	@ApiResponse(responseCode = "400", description = "Invalid or expired password reset token or invalid new password")
+	@ApiResponse(responseCode = "403", description = "Invalid or missing CSRF token")
+	@ApiResponse(responseCode = "429", description = "Too many password reset attempts")
 	@PostMapping("/password-reset/confirm")
 	public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
 		passwordResetService.confirmPasswordReset(request.token(), request.newPassword());

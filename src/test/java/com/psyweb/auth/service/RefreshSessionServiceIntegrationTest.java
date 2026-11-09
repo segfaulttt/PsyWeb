@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.psyweb.auth.domain.RefreshSession;
 import com.psyweb.auth.domain.RefreshToken;
+import com.psyweb.auth.exception.InvalidRefreshTokenException;
 import com.psyweb.auth.repository.RefreshSessionRepository;
 import com.psyweb.auth.repository.RefreshTokenRepository;
 import com.psyweb.auth.service.dto.IssuedRefreshToken;
@@ -167,7 +167,7 @@ class RefreshSessionServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 		assertEquals(2, tokenRepository.findBySessionId(session.getId()).size());
 
-		assertThrows(IllegalArgumentException.class, () -> refreshSessionService.rotation(rotatedRawToken));
+		assertThrows(InvalidRefreshTokenException.class, () -> refreshSessionService.rotation(rotatedRawToken));
 	}
 
 	@Test
@@ -215,7 +215,7 @@ class RefreshSessionServiceIntegrationTest extends PostgreSQLIntegrationTest {
 
 		assertNotNull(updatedSession.getRevokedAt());
 
-		assertThrows(IllegalArgumentException.class, () -> refreshSessionService.rotation(issued.rawRefreshToken()));
+		assertThrows(InvalidRefreshTokenException.class, () -> refreshSessionService.rotation(issued.rawRefreshToken()));
 	}
 
 	@Test
@@ -268,11 +268,11 @@ class RefreshSessionServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		assertTrue(revokedSessions.stream().allMatch(session -> session.getRevokedAt() != null));
 
 		assertAll(
-				() -> assertThrows(IllegalArgumentException.class,
+				() -> assertThrows(InvalidRefreshTokenException.class,
 						() -> refreshSessionService.rotation(first.rawRefreshToken())),
-				() -> assertThrows(IllegalArgumentException.class,
+				() -> assertThrows(InvalidRefreshTokenException.class,
 						() -> refreshSessionService.rotation(second.rawRefreshToken())),
-				() -> assertThrows(IllegalArgumentException.class,
+				() -> assertThrows(InvalidRefreshTokenException.class,
 						() -> refreshSessionService.rotation(third.rawRefreshToken())));
 	}
 
@@ -294,7 +294,7 @@ class RefreshSessionServiceIntegrationTest extends PostgreSQLIntegrationTest {
 		assertNotNull(firstSession.getRevokedAt());
 		assertNull(secondSession.getRevokedAt());
 
-		assertThrows(IllegalArgumentException.class,
+		assertThrows(InvalidRefreshTokenException.class,
 				() -> refreshSessionService.rotation(firstToken.rawRefreshToken()));
 
 		assertInstanceOf(Success.class, refreshSessionService.rotation(secondToken.rawRefreshToken()));

@@ -3,12 +3,15 @@ package com.psyweb.auth.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.psyweb.auth.exception.InvalidCredentialsException;
+import com.psyweb.auth.exception.InvalidRefreshTokenException;
 import com.psyweb.auth.service.dto.AuthenticationResult;
 import com.psyweb.auth.service.dto.IssuedAccessToken;
 import com.psyweb.auth.service.dto.IssuedRefreshToken;
 import com.psyweb.auth.service.dto.RefreshRotationResult;
 import com.psyweb.auth.service.dto.Success;
 import com.psyweb.user.domain.User;
+import com.psyweb.user.exception.UserNotFoundException;
 import com.psyweb.user.service.UserService;
 
 import jakarta.transaction.Transactional;
@@ -37,10 +40,15 @@ public class AuthService {
 			throw new IllegalArgumentException("Invalid password");
 		}
 
-		User user = userService.findUserForUpdateByEmail(email);
+		User user;
 
+		try {
+		    user = userService.findUserForUpdateByEmail(email);
+		} catch (UserNotFoundException e) {
+		    throw new InvalidCredentialsException();
+		}
 		if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-			throw new IllegalArgumentException("Incorrect password");
+			throw new InvalidCredentialsException();
 		}
 
 		IssuedRefreshToken refreshToken = refreshSessionService.createSession(user.getId());
@@ -58,7 +66,7 @@ public class AuthService {
 			return new AuthenticationResult(accessToken.accessToken(), accessToken.expiresAt(),
 					res.issuedRefreshToken().rawRefreshToken(), res.issuedRefreshToken().expiresAt());
 		}
-		throw new IllegalArgumentException();
+		throw new InvalidRefreshTokenException();
 	}
 
 	public void logout(String rawRefreshToken) {

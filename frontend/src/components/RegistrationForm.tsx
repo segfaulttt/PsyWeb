@@ -106,14 +106,23 @@ export function RegistrationForm({ role }: RegistrationFormProps) {
       return
     }
 
-    const request: RegistrationRequest = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      password: form.password,
-    }
 
-    setIsSubmitting(true)
+	
+	const request: RegistrationRequest = {
+	  firstName: form.firstName.trim(),
+	  lastName: form.lastName.trim(),
+	  email: form.email.trim(),
+	  password: form.password,
+	  ...(role === 'SPECIALIST'
+	    ? {
+	        timeZone: Intl.DateTimeFormat()
+	          .resolvedOptions()
+	          .timeZone,
+	      }
+	    : {}),
+	}
+
+	setIsSubmitting(true)
 
     try {
       await registerUser(role, request)

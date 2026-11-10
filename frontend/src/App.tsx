@@ -1,17 +1,51 @@
 
 import './App.css'
-import { useState } from 'react'
+import { useEffect, useSyncExternalStore, useState } from 'react'
 import { RegistrationModal } from './components/RegistrationModal'
 import type { RegistrationRole } from './types/registration'
 import { PsyWebLogo } from './components/PsyWebLogo'
+import { LoginModal } from './components/LoginModal'
+import {
+  getAuthStatus,
+  subscribeToAuth,
+  restoreSession,
+  logout,
+} from './api/auth'
 
 function App() {
 	const [registrationRole, setRegistrationRole] =
-	useState<RegistrationRole | null>(null)
+		useState<RegistrationRole | null>(null)
+
+
+		const [isLoginOpen, setIsLoginOpen] = useState(false)
+
+		const authStatus = useSyncExternalStore(
+		  subscribeToAuth,
+		  getAuthStatus,
+		)
+
+		const [logoutError, setLogoutError] = useState<string | null>(null)
+
+		useEffect(() => {
+		  void restoreSession()
+		}, [])
+
+		async function handleLogout() {
+		  setLogoutError(null)
+
+		  try {
+		    await logout()
+		  } catch {
+		    setLogoutError(
+		      'Не удалось завершить сессию на сервере. Попробуйте еще раз.',
+		    )
+		  }
+		}
+
   return (
     <main className="site">
 		<div className="hero-visual" aria-hidden="true" />
-		
+
 		<header className="site-header">
         <PsyWebLogo />
 
@@ -23,7 +57,29 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <span className="login-label">Войти</span>
+
+
+		{authStatus === 'loading' ? (
+		  <span className="login-label">Проверяем сессию...</span>
+		) : authStatus === 'authenticated' ? (
+		  <button
+		    className="login-label"
+		    type="button"
+		    onClick={() => void handleLogout()}
+		  >
+		    Выйти
+		  </button>
+		) : (
+		  <button
+		    className="login-label"
+		    type="button"
+		    onClick={() => setIsLoginOpen(true)}
+		  >
+		    Войти
+		  </button>
+		)}
+
+		{authStatus === 'guest' && (
 		  <button
 		    className="signup-label"
 		    type="button"
@@ -31,7 +87,15 @@ function App() {
 		  >
 		    Регистрация
 		  </button>
+		)}
         </div>
+
+		{logoutError && (
+		  <p role="alert" className="registration-server-error">
+		    {logoutError}
+		  </p>
+		)}
+
       </header>
 
       <section className="hero">
@@ -124,6 +188,17 @@ function App() {
 	      onClose={() => setRegistrationRole(null)}
 	    />
 	  )}
+
+	  {isLoginOpen && (
+		<LoginModal
+		  onClose={() => setIsLoginOpen(false)}
+		  onSuccess={() => {
+		    setLogoutError(null)
+		    setIsLoginOpen(false)
+		  }}
+		/>
+	  )}
+
     </main>
   )
 }

@@ -31,10 +31,44 @@ export async function registerUser(
       ? '/api/auth/register/client'
       : '/api/auth/register/specialist'
 
+  // Получаем CSRF cookie от Spring Security
+  const csrfResponse = await fetch('/api/auth/csrf', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+  })
+
+  if (!csrfResponse.ok) {
+    throw new RegistrationApiError(
+      csrfResponse.status,
+      'CSRF_ERROR',
+      'Не удалось получить CSRF-токен',
+    )
+  }
+
+  // Spring Security SPA использует токен из cookie
+  const csrfCookie = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+
+  if (!csrfCookie) {
+    throw new RegistrationApiError(
+      403,
+      'CSRF_COOKIE_MISSING',
+      'CSRF cookie не установлена',
+    )
+  }
+
+  const csrfToken = decodeURIComponent(
+    csrfCookie.substring('XSRF-TOKEN='.length),
+  )
+
   const response = await fetch(endpoint, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      'X-XSRF-TOKEN': csrfToken,
     },
     body: JSON.stringify(data),
   })

@@ -113,4 +113,19 @@ public class SpecialistService {
 		specialist.reinstate();
 		specialistRepository.save(specialist);
 	}
+
+	@Transactional
+	public Specialist updateProfile(Long specialistId, String firstName, String lastName) {
+		Specialist specialist = getSpecialistForUpdate(specialistId);
+
+		if (firstName != null) {
+			specialist.changeFirstName(firstName);
+		}
+
+		if (lastName != null) {
+			specialist.changeLastName(lastName);
+		}
+
+		return specialist;
+	}
 }

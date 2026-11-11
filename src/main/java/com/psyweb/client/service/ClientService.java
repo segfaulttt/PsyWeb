@@ -44,4 +44,29 @@ public class ClientService {
 		userService.getActiveUser(clientId);
 		return getClient(clientId);
 	}
+
+	@Transactional
+	public Client getClientForUpdate(Long clientId) {
+		if (clientId == null) {
+			throw new InvalidClientDataException("Client id cannot be null");
+		}
+
+		return clientRepository.findForUpdateById(clientId)
+				.orElseThrow(() -> new ClientNotFoundException("Client not found"));
+	}
+
+	@Transactional
+	public Client updateProfile(Long clientId, String firstName, String lastName) {
+		Client client = getClientForUpdate(clientId);
+
+		if (firstName != null) {
+			client.changeFirstName(firstName);
+		}
+
+		if (lastName != null) {
+			client.changeLastName(lastName);
+		}
+
+		return client;
+	}
 }

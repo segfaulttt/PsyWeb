@@ -1,30 +1,37 @@
 
 package com.psyweb.user.web.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.util.UUID;
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.psyweb.auth.service.AccessTokenService;
 import com.psyweb.client.domain.Client;
 import com.psyweb.client.repository.ClientRepository;
+import com.psyweb.specialist.repository.SpecialistRepository;
 import com.psyweb.testsupport.PostgreSQLIntegrationTest;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.domain.UserRole;
 import com.psyweb.user.domain.UserStatus;
 import com.psyweb.user.repository.UserRepository;
+import com.psyweb.specialist.domain.Specialist;
 
 @AutoConfigureMockMvc
 class MeSecurityIntegrationTest extends PostgreSQLIntegrationTest {
 
 	private static final String ME_URL = "/api/me";
+	private static final String ME_PROFILE_URL = "/api/me/profile";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -37,6 +44,9 @@ class MeSecurityIntegrationTest extends PostgreSQLIntegrationTest {
 
 	@Autowired
 	private AccessTokenService accessTokenService;
+
+	@Autowired
+	private SpecialistRepository specialistRepository;
 
 	@Test
 	void shouldReturn401WhenJwtIsMissing() throws Exception {
@@ -101,5 +111,180 @@ class MeSecurityIntegrationTest extends PostgreSQLIntegrationTest {
 
 	private String createToken(User user) {
 		return accessTokenService.generateAccessToken(user.getId(), user.getRole()).accessToken();
+	}
+
+	@Test
+	void shouldUpdateClientProfileAndPersistChanges() throws Exception {
+		User user = createUser(UserStatus.ACTIVE);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{"firstName": "Maria"}
+								"""))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.account.id").value(user.getId()))
+				.andExpect(jsonPath("$.profile.firstName").value("Maria"))
+				.andExpect(jsonPath("$.profile.lastName").value("Smith"))
+				.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Maria", saved.getFirstName());
+		assertEquals("Smith", saved.getLastName());
+	}
+
+	@Test
+	void shouldUpdateBothClientProfileFields() throws Exception {
+		User user = createUser(UserStatus.ACTIVE);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{
+								    "firstName": "Maria",
+								    "lastName": "Jones"
+								}
+								"""))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.profile.firstName").value("Maria"))
+				.andExpect(jsonPath("$.profile.lastName").value("Jones"));
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Maria", saved.getFirstName());
+		assertEquals("Jones", saved.getLastName());
+	}
+
+	@Test
+	void shouldAllowPendingSpecialistToUpdateProfile() throws Exception {
+		User user = userRepository.saveAndFlush(new User("specialist-" + UUID.randomUUID() + "@example.com",
+				"test-password-hash", UserRole.SPECIALIST, UserStatus.ACTIVE));
+
+		specialistRepository.saveAndFlush(new Specialist(user, "Kate", "Jones", Duration.ZERO, Duration.ZERO));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{"firstName": "Maria"}
+								"""))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.profile.firstName").value("Maria"))
+				.andExpect(jsonPath("$.profile.lastName").value("Jones"))
+				.andExpect(jsonPath("$.profile.approvalStatus").value("PENDING"));
+
+		Specialist saved = specialistRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Maria", saved.getFirstName());
+		assertEquals("Jones", saved.getLastName());
+	}
+
+	@Test
+	void shouldNotUpdateAnotherClientProfile() throws Exception {
+		User actor = createUser(UserStatus.ACTIVE);
+		User other = createUser(UserStatus.ACTIVE);
+
+		clientRepository.saveAndFlush(new Client(actor, "Anna", "Smith"));
+		clientRepository.saveAndFlush(new Client(other, "Kate", "Jones"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(actor))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{
+								    "firstName": "Maria",
+								    "clientId": %d
+								}
+								""".formatted(other.getId())))
+				.andExpect(status().isBadRequest());
+
+		Client actorProfile = clientRepository.findById(actor.getId()).orElseThrow();
+		Client otherProfile = clientRepository.findById(other.getId()).orElseThrow();
+
+		assertEquals("Anna", actorProfile.getFirstName());
+		assertEquals("Kate", otherProfile.getFirstName());
+	}
+
+	@Test
+	void shouldReturn401WhenJwtIsMissingOnProfileUpdate() throws Exception {
+		mockMvc.perform(patch(ME_PROFILE_URL).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("""
+				{"firstName": "Maria"}
+				""")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void shouldReturn401WhenJwtIsInvalidOnProfileUpdate() throws Exception {
+		mockMvc.perform(patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token")
+				.contentType(MediaType.APPLICATION_JSON).content("""
+						{"firstName": "Maria"}
+						""")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void shouldRejectBlockedClientProfileUpdate() throws Exception {
+		User user = createUser(UserStatus.BLOCKED);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{"firstName": "Maria"}
+								"""))
+				.andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("USER_ACCESS_FORBIDDEN"));
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Anna", saved.getFirstName());
+	}
+
+	@Test
+	void shouldAllowAuthenticatedProfileUpdateWithoutCsrfToken() throws Exception {
+		User user = createUser(UserStatus.ACTIVE);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(patch(ME_PROFILE_URL).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+				.contentType(MediaType.APPLICATION_JSON).content("""
+						{"firstName": "Maria"}
+						""")).andExpect(status().isOk()).andExpect(jsonPath("$.profile.firstName").value("Maria"));
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Maria", saved.getFirstName());
+	}
+
+	@Test
+	void shouldRejectInvalidProfileFieldWithoutChangingData() throws Exception {
+		User user = createUser(UserStatus.ACTIVE);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{
+								    "firstName": "Maria",
+								    "role": "ADMIN"
+								}
+								"""))
+				.andExpect(status().isBadRequest());
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Anna", saved.getFirstName());
+		assertEquals("Smith", saved.getLastName());
+	}
+
+	@Test
+	void shouldRejectBlankFirstNameWithoutChangingData() throws Exception {
+		User user = createUser(UserStatus.ACTIVE);
+		clientRepository.saveAndFlush(new Client(user, "Anna", "Smith"));
+
+		mockMvc.perform(
+				patch(ME_PROFILE_URL).with(csrf()).header(HttpHeaders.AUTHORIZATION, "Bearer " + createToken(user))
+						.contentType(MediaType.APPLICATION_JSON).content("""
+								{"firstName": "   "}
+								"""))
+				.andExpect(status().isBadRequest());
+
+		Client saved = clientRepository.findById(user.getId()).orElseThrow();
+
+		assertEquals("Anna", saved.getFirstName());
 	}
 }

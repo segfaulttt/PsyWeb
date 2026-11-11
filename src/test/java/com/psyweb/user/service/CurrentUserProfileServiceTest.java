@@ -22,6 +22,8 @@ import com.psyweb.user.exception.UserRoleMismatchException;
 import com.psyweb.user.service.dto.CurrentClientProfile;
 import com.psyweb.user.service.dto.CurrentSpecialistProfile;
 import com.psyweb.user.service.dto.CurrentUserProfile;
+import com.psyweb.user.exception.InvalidUserDataException;
+import com.psyweb.user.service.dto.UpdateCurrentProfileCommand;
 
 @ExtendWith(MockitoExtension.class)
 class CurrentUserProfileServiceTest {
@@ -143,6 +145,153 @@ class CurrentUserProfileServiceTest {
 				() -> service.getCurrentUserProfile());
 
 		assertEquals("Incorrect role", exception.getMessage());
+
+		verifyNoInteractions(clientService, specialistService);
+	}
+
+	@Test
+	void shouldUpdateCurrentClientFirstNameOnly() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.CLIENT);
+		User user = mock(User.class);
+		Client client = mock(Client.class);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand("Anna", null);
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID)).thenReturn(user);
+		when(user.getRole()).thenReturn(UserRole.CLIENT);
+		when(user.getId()).thenReturn(USER_ID);
+		when(clientService.updateProfile(USER_ID, "Anna", null)).thenReturn(client);
+
+		CurrentUserProfile result = service.updateCurrentProfile(command);
+
+		assertInstanceOf(CurrentClientProfile.class, result);
+
+		CurrentClientProfile profile = (CurrentClientProfile) result;
+		assertSame(user, profile.user());
+		assertSame(client, profile.client());
+
+		verify(clientService).updateProfile(USER_ID, "Anna", null);
+		verify(userService).getActiveUserForUpdate(USER_ID);
+		verify(userService, never()).getActiveUser(anyLong());
+		verifyNoInteractions(specialistService);
+	}
+
+	@Test
+	void shouldUpdateBothClientProfileFields() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.CLIENT);
+		User user = mock(User.class);
+		Client client = mock(Client.class);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand("Anna", "Smith");
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID)).thenReturn(user);
+		when(user.getRole()).thenReturn(UserRole.CLIENT);
+		when(user.getId()).thenReturn(USER_ID);
+		when(clientService.updateProfile(USER_ID, "Anna", "Smith")).thenReturn(client);
+
+		CurrentUserProfile result = service.updateCurrentProfile(command);
+
+		assertInstanceOf(CurrentClientProfile.class, result);
+
+		verify(clientService).updateProfile(USER_ID, "Anna", "Smith");
+		verifyNoInteractions(specialistService);
+	}
+
+	@Test
+	void shouldUpdateCurrentSpecialistProfile() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.SPECIALIST);
+		User user = mock(User.class);
+		Specialist specialist = mock(Specialist.class);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand(null, "Jones");
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID)).thenReturn(user);
+		when(user.getRole()).thenReturn(UserRole.SPECIALIST);
+		when(user.getId()).thenReturn(USER_ID);
+		when(specialistService.updateProfile(USER_ID, null, "Jones")).thenReturn(specialist);
+
+		CurrentUserProfile result = service.updateCurrentProfile(command);
+
+		assertInstanceOf(CurrentSpecialistProfile.class, result);
+
+		CurrentSpecialistProfile profile = (CurrentSpecialistProfile) result;
+
+		assertSame(user, profile.user());
+		assertSame(specialist, profile.specialist());
+
+		verify(specialistService).updateProfile(USER_ID, null, "Jones");
+		verifyNoInteractions(clientService);
+	}
+
+	@Test
+	void shouldRejectNullUpdateCommand() {
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class,
+				() -> service.updateCurrentProfile(null));
+
+		assertEquals("USER_INVALID_DATA", exception.code());
+		assertEquals("Profile update command cannot be null", exception.getMessage());
+		verifyNoInteractions(currentActorProvider, userService, clientService, specialistService);
+	}
+
+	@Test
+	void shouldRejectUpdateCommandWithoutFields() {
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand(null, null);
+
+		InvalidUserDataException exception = assertThrows(InvalidUserDataException.class,
+				() -> service.updateCurrentProfile(command));
+
+		assertEquals("USER_INVALID_DATA", exception.code());
+		assertEquals("At least one profile field must be provided", exception.getMessage());
+		verifyNoInteractions(currentActorProvider, userService, clientService, specialistService);
+	}
+
+	@Test
+	void shouldRejectProfileUpdateWhenAuthenticatedRoleDoesNotMatch() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.CLIENT);
+		User user = mock(User.class);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand("Anna", null);
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID)).thenReturn(user);
+		when(user.getRole()).thenReturn(UserRole.SPECIALIST);
+
+		UserRoleMismatchException exception = assertThrows(UserRoleMismatchException.class,
+				() -> service.updateCurrentProfile(command));
+
+		assertEquals("USER_ROLE_MISMATCH", exception.code());
+
+		verifyNoInteractions(clientService, specialistService);
+	}
+
+	@Test
+	void shouldRejectProfileUpdateWhenUserIsBlocked() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.CLIENT);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand("Anna", null);
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID))
+				.thenThrow(new UserAccessForbiddenException("User must have status 'ACTIVE'"));
+
+		UserAccessForbiddenException exception = assertThrows(UserAccessForbiddenException.class,
+				() -> service.updateCurrentProfile(command));
+
+		assertEquals("USER_ACCESS_FORBIDDEN", exception.code());
+
+		verify(userService).getActiveUserForUpdate(USER_ID);
+		verifyNoInteractions(clientService, specialistService);
+	}
+
+	@Test
+	void shouldRejectProfileUpdateForUnsupportedRole() {
+		CurrentActor actor = new CurrentActor(USER_ID, UserRole.ADMIN);
+		User user = mock(User.class);
+		UpdateCurrentProfileCommand command = new UpdateCurrentProfileCommand("Anna", null);
+
+		when(currentActorProvider.requireCurrentActor()).thenReturn(actor);
+		when(userService.getActiveUserForUpdate(USER_ID)).thenReturn(user);
+		when(user.getRole()).thenReturn(UserRole.ADMIN);
+
+		assertThrows(IllegalStateException.class, () -> service.updateCurrentProfile(command));
 
 		verifyNoInteractions(clientService, specialistService);
 	}

@@ -2,6 +2,7 @@ package com.psyweb.auth.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.psyweb.auth.exception.InvalidCurrentPasswordException;
 import com.psyweb.auth.exception.InvalidPasswordException;
@@ -14,12 +15,15 @@ import com.psyweb.user.service.UserService;
 public class PasswordService {
 	private final UserService userService;
 	private final PasswordEncoder passwordEncoder;
+	private final RefreshSessionService refreshSessionService;
 	
-	public PasswordService(UserService userService, PasswordEncoder passwordEncoder) {
+	public PasswordService(UserService userService, PasswordEncoder passwordEncoder, RefreshSessionService refreshSessionService) {
 		this.userService = userService;
 		this.passwordEncoder = passwordEncoder;
+		this.refreshSessionService = refreshSessionService;
 	}
 	
+	@Transactional
 	public void changePassword(Long userId, String currentPassword, String newPassword) {
 		if (userId == null) {
 			throw new InvalidUserDataException("User ID cannot be null");
@@ -27,7 +31,7 @@ public class PasswordService {
 		if (currentPassword == null) {
 			throw new InvalidCurrentPasswordException("Current password cannot be null");
 		}
-		User user = userService.getActiveUser(userId);
+		User user = userService.getActiveUserForUpdate(userId);
 		
 		String oldHash = user.getPasswordHash();
 		
@@ -40,5 +44,6 @@ public class PasswordService {
 		}
 		String newHash = passwordEncoder.encode(newPassword);
 		userService.changePassword(userId, oldHash, newHash);
+		refreshSessionService.logoutAll(userId);
 	}
 }

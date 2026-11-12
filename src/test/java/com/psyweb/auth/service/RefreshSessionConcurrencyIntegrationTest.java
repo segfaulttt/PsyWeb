@@ -128,7 +128,7 @@ class RefreshSessionConcurrencyIntegrationTest extends PostgreSQLIntegrationTest
 
 				try {
 					return refreshSessionService.rotation(rawToken);
-				} catch (IllegalArgumentException exception) {
+				} catch (InvalidRefreshTokenException exception) {
 					return exception;
 				}
 			});
@@ -149,7 +149,7 @@ class RefreshSessionConcurrencyIntegrationTest extends PostgreSQLIntegrationTest
 
 			assertNotNull(session.getRevokedAt());
 
-			assertTrue(rotationResult instanceof Success || rotationResult instanceof IllegalArgumentException,
+			assertTrue(rotationResult instanceof Success || rotationResult instanceof InvalidRefreshTokenException,
 					"Rotation must either succeed before logout or be rejected");
 
 			if (rotationResult instanceof Success success) {

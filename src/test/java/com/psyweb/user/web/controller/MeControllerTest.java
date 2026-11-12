@@ -30,6 +30,9 @@ import com.psyweb.user.web.dto.response.ClientMeResponse;
 import com.psyweb.user.web.dto.response.SpecialistMeResponse;
 import com.psyweb.user.web.dto.response.UserAccountResponse;
 import com.psyweb.user.web.mapper.MeWebMapper;
+import com.psyweb.auth.authorization.CurrentActorProvider;
+import com.psyweb.auth.service.PasswordService;
+import com.psyweb.auth.web.cookie.RefreshCookieFactory;
 import com.psyweb.client.domain.Client;
 import com.psyweb.user.domain.User;
 import com.psyweb.user.service.dto.CurrentClientProfile;
@@ -54,11 +57,21 @@ class MeControllerTest {
 	@Mock
 	private MeWebMapper meWebMapper;
 
+	@Mock
+	private PasswordService passwordService;
+
+	@Mock
+	private CurrentActorProvider currentActorProvider;
+
+	@Mock
+	private RefreshCookieFactory refreshCookieFactory;
+
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
-		MeController controller = new MeController(currentUserProfileService, meWebMapper);
+		MeController controller = new MeController(currentUserProfileService, meWebMapper, passwordService,
+				currentActorProvider, refreshCookieFactory);
 
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setControllerAdvice(new GlobalExceptionHandler(Clock.systemUTC())).build();
